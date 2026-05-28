@@ -13,40 +13,39 @@ interface Props {
   winnerEditable: boolean;
   bootEditable: boolean;
   teams: Option[];
-  players: Option[];
   initialWinner: string;
   initialBoot: string;
 }
 
-function Picker({
-  kind,
-  label,
-  options,
+const box =
+  "rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]";
+
+/** Tournament-winner picker (constrained <select>). */
+function TeamPicker({
   initial,
   editable,
+  teams,
 }: {
-  kind: SpecialKind;
-  label: string;
-  options: Option[];
   initial: string;
   editable: boolean;
+  teams: Option[];
 }) {
   const [value, setValue] = useState(initial);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, start] = useTransition();
 
   function save() {
     if (!value) return;
     setMsg(null);
-    startTransition(async () => {
-      const res = await saveSpecialPick(kind, value);
+    start(async () => {
+      const res = await saveSpecialPick("winner", value);
       setMsg(res.ok ? { ok: true, text: "Saved!" } : { ok: false, text: res.error });
     });
   }
 
   return (
-    <div className="rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]">
-      <h2 className="font-medium">{label}</h2>
+    <div className={box}>
+      <h2 className="font-medium">Tournament Winner</h2>
       <div className="mt-3 flex items-center gap-3">
         <select
           value={value}
@@ -55,7 +54,7 @@ function Picker({
           className="flex-1 rounded-lg border border-black/[.12] bg-transparent px-2 py-2 disabled:opacity-60 dark:border-white/[.2]"
         >
           <option value="">— choose —</option>
-          {options.map((o) => (
+          {teams.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
             </option>
@@ -80,30 +79,77 @@ function Picker({
   );
 }
 
+/** Golden-boot picker (free-text). Server validates length and trims. */
+function GoldenBootPicker({
+  initial,
+  editable,
+}: {
+  initial: string;
+  editable: boolean;
+}) {
+  const [value, setValue] = useState(initial);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+
+  function save() {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setMsg({ ok: false, text: "Enter a player name." });
+      return;
+    }
+    setMsg(null);
+    start(async () => {
+      const res = await saveSpecialPick("golden_boot", trimmed);
+      setMsg(res.ok ? { ok: true, text: "Saved!" } : { ok: false, text: res.error });
+    });
+  }
+
+  return (
+    <div className={box}>
+      <h2 className="font-medium">Golden Boot (top scorer)</h2>
+      <div className="mt-3 flex items-center gap-3">
+        <input
+          type="text"
+          value={value}
+          disabled={!editable}
+          maxLength={100}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="e.g. Kylian Mbappé"
+          className="flex-1 rounded-lg border border-black/[.12] bg-transparent px-2 py-2 text-foreground disabled:opacity-60 dark:border-white/[.2]"
+        />
+        {editable && (
+          <button
+            onClick={save}
+            disabled={pending}
+            className="rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+          >
+            {pending ? "Saving…" : "Save"}
+          </button>
+        )}
+      </div>
+      {msg && (
+        <p className={`mt-2 text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>
+          {msg.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function SpecialPicks({
   winnerEditable,
   bootEditable,
   teams,
-  players,
   initialWinner,
   initialBoot,
 }: Props) {
   return (
     <div className="space-y-4">
-      <Picker
-        kind="winner"
-        label="Tournament Winner"
-        options={teams}
-        initial={initialWinner}
-        editable={winnerEditable}
-      />
-      <Picker
-        kind="golden_boot"
-        label="Golden Boot (top scorer)"
-        options={players}
-        initial={initialBoot}
-        editable={bootEditable}
-      />
+      <TeamPicker teams={teams} initial={initialWinner} editable={winnerEditable} />
+      <GoldenBootPicker initial={initialBoot} editable={bootEditable} />
     </div>
   );
 }
+
+// `SpecialKind` only re-exported here to keep an import path for callers if needed.
+export type { SpecialKind };

@@ -9,7 +9,7 @@ import {
   type GroupMatch,
 } from "@/lib/standings";
 import { assignThirdPlaceSlots } from "@/lib/thirdplace";
-import type { Match, MatchResult, Player, Team, TournamentConfig } from "@/lib/types";
+import type { Match, MatchResult, Team, TournamentConfig } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +28,10 @@ export default async function AdminPage() {
     .single();
   if (!profile?.is_admin) redirect("/matches");
 
-  const [{ data: matches }, { data: teams }, { data: players }, { data: results }, { data: config }] =
+  const [{ data: matches }, { data: teams }, { data: results }, { data: config }] =
     await Promise.all([
       supabase.from("matches").select("*").order("kickoff_at"),
       supabase.from("teams").select("id, name, group_label").order("name"),
-      supabase.from("players").select("id, name, team_id").order("name"),
       supabase.from("match_results").select("*"),
       supabase.from("tournament_config").select("*").eq("id", 1).single(),
     ]);
@@ -70,7 +69,6 @@ export default async function AdminPage() {
       <AdminClient
         matches={(matches ?? []) as Match[]}
         teams={(teams ?? []) as Pick<Team, "id" | "name">[]}
-        players={(players ?? []) as Pick<Player, "id" | "name">[]}
         results={(results ?? []) as MatchResult[]}
         config={config as TournamentConfig}
       />

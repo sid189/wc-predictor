@@ -390,7 +390,7 @@ export interface ConfigInput {
   starts_at?: string | null;
   group_stage_ends_at?: string | null;
   actual_winner_team_id?: string | null;
-  actual_golden_boot_player_id?: string | null;
+  actual_golden_boot_name?: string | null;
 }
 
 /** Admin: update tournament config; rescore special picks when actuals change. */
@@ -422,13 +422,16 @@ export async function scoreSpecials() {
 
   const { data: config } = await admin
     .from("tournament_config")
-    .select("actual_winner_team_id, actual_golden_boot_player_id")
+    .select("actual_winner_team_id, actual_golden_boot_name")
     .eq("id", 1)
     .single();
   if (!config) return;
 
   const { data: picks } = await admin.from("special_predictions").select("*");
   if (!picks) return;
+
+  const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+  const actualBoot = norm(config.actual_golden_boot_name);
 
   for (const pick of picks) {
     let correct = false;
@@ -437,9 +440,8 @@ export async function scoreSpecials() {
         config.actual_winner_team_id != null &&
         pick.team_id === config.actual_winner_team_id;
     } else if (pick.kind === "golden_boot") {
-      correct =
-        config.actual_golden_boot_player_id != null &&
-        pick.player_id === config.actual_golden_boot_player_id;
+      const picked = norm(pick.golden_boot_name);
+      correct = actualBoot !== "" && picked === actualBoot;
     }
     const points = scoreSpecial(correct, pick.is_initial);
     await admin

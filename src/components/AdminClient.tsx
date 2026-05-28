@@ -10,12 +10,11 @@ import {
   saveTournamentConfig,
 } from "@/app/actions/admin";
 import { STAGE_LABELS, formatKickoff } from "@/lib/format";
-import type { Match, MatchResult, Player, Team, TournamentConfig } from "@/lib/types";
+import type { Match, MatchResult, Team, TournamentConfig } from "@/lib/types";
 
 interface Props {
   matches: Match[];
   teams: Pick<Team, "id" | "name">[];
-  players: Pick<Player, "id" | "name">[];
   results: MatchResult[];
   config: TournamentConfig;
 }
@@ -34,16 +33,14 @@ function fromLocalInput(v: string): string | null {
 function ConfigEditor({
   config,
   teams,
-  players,
 }: {
   config: TournamentConfig;
   teams: Pick<Team, "id" | "name">[];
-  players: Pick<Player, "id" | "name">[];
 }) {
   const [startsAt, setStartsAt] = useState(toLocalInput(config?.starts_at ?? null));
   const [groupEnd, setGroupEnd] = useState(toLocalInput(config?.group_stage_ends_at ?? null));
   const [winner, setWinner] = useState(config?.actual_winner_team_id ?? "");
-  const [boot, setBoot] = useState(config?.actual_golden_boot_player_id ?? "");
+  const [boot, setBoot] = useState(config?.actual_golden_boot_name ?? "");
   const [msg, setMsg] = useState("");
   const [pending, start] = useTransition();
 
@@ -54,7 +51,7 @@ function ConfigEditor({
         starts_at: fromLocalInput(startsAt),
         group_stage_ends_at: fromLocalInput(groupEnd),
         actual_winner_team_id: winner || null,
-        actual_golden_boot_player_id: boot || null,
+        actual_golden_boot_name: boot.trim() || null,
       });
       setMsg(res.ok ? "Saved (special picks rescored)." : res.error);
     });
@@ -97,19 +94,15 @@ function ConfigEditor({
         </select>
       </label>
       <label className="block text-sm">
-        Actual golden boot
-        <select
+        Actual golden boot (player name)
+        <input
+          type="text"
           value={boot}
+          maxLength={100}
+          placeholder="e.g. Kylian Mbappé"
           onChange={(e) => setBoot(e.target.value)}
-          className="mt-1 block w-full rounded-lg border border-black/[.12] bg-transparent px-2 py-1 dark:border-white/[.2]"
-        >
-          <option value="">— not decided —</option>
-          {players.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          className="mt-1 block w-full rounded-lg border border-black/[.12] bg-transparent px-2 py-1 text-foreground dark:border-white/[.2]"
+        />
       </label>
       <div className="flex items-center gap-3">
         <button
@@ -338,7 +331,7 @@ function RecalcButton() {
   );
 }
 
-export function AdminClient({ matches, teams, players, results, config }: Props) {
+export function AdminClient({ matches, teams, results, config }: Props) {
   const resultMap = new Map(results.map((r) => [r.match_id, r]));
   return (
     <div className="space-y-6">
@@ -351,7 +344,7 @@ export function AdminClient({ matches, teams, players, results, config }: Props)
           Teams & players →
         </Link>
       </div>
-      <ConfigEditor config={config} teams={teams} players={players} />
+      <ConfigEditor config={config} teams={teams} />
       <section>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Results</h2>

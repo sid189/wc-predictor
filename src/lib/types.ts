@@ -79,6 +79,7 @@ export interface SpecialPrediction {
   kind: SpecialKind;
   team_id: string | null;
   player_id: string | null;
+  golden_boot_name: string | null;
   is_initial: boolean;
   post_group_change_used: boolean;
   points: number;
@@ -91,5 +92,6 @@ export interface TournamentConfig {
   starts_at: string | null;
   group_stage_ends_at: string | null;
   actual_winner_team_id: string | null;
-  actual_golden_boot_player_id: string | null;
+  actual_golden_boot_player_id: string | null; // legacy, kept nullable
+  actual_golden_boot_name: string | null;
 }
