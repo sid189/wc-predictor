@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { STAGE_LABELS, formatDate, formatTime, hasKickedOff } from "@/lib/format";
+import { STAGE_LABELS, formatDate, formatTime, hasKickedOff, predictionWindow } from "@/lib/format";
+import { Flag } from "@/components/Flag";
 import type { Match, Prediction, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,9 @@ export default async function MatchesPage({
   let matches = (allMatches ?? []) as Match[];
   if (stage === "group") matches = matches.filter((m) => !m.is_knockout);
   else if (stage === "knockout") matches = matches.filter((m) => m.is_knockout);
-  if (status === "open") matches = matches.filter((m) => !hasKickedOff(m.kickoff_at));
+  // "Open" filter now means the 48h prediction window is actually open right now.
+  if (status === "open")
+    matches = matches.filter((m) => predictionWindow(m.kickoff_at).state === "open");
   else if (status === "todo")
     matches = matches.filter((m) => !hasKickedOff(m.kickoff_at) && !predMap.has(m.id));
 
@@ -95,7 +98,7 @@ export default async function MatchesPage({
             </h2>
             <ul className="space-y-2">
               {g.items.map((m) => {
-                const locked = hasKickedOff(m.kickoff_at);
+                const win = predictionWindow(m.kickoff_at);
                 const pred = predMap.get(m.id);
                 return (
                   <li key={m.id}>
@@ -109,10 +112,16 @@ export default async function MatchesPage({
                           {m.group_label ? ` · Group ${m.group_label}` : ""}
                           {m.city ? ` · ${m.city}` : ""}
                         </div>
-                        <div className="font-medium">
-                          {sideName(m.team_a_id, m.placeholder_a)}{" "}
-                          <span className="text-zinc-400">vs</span>{" "}
-                          {sideName(m.team_b_id, m.placeholder_b)}
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Flag teamName={sideName(m.team_a_id, m.placeholder_a)} size={18} />
+                            {sideName(m.team_a_id, m.placeholder_a)}
+                          </span>
+                          <span className="text-zinc-400">vs</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <Flag teamName={sideName(m.team_b_id, m.placeholder_b)} size={18} />
+                            {sideName(m.team_b_id, m.placeholder_b)}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right text-sm">
@@ -127,10 +136,14 @@ export default async function MatchesPage({
                           <span className="text-zinc-400">no pick</span>
                         )}
                         <div className="text-xs">
-                          {locked ? (
+                          {win.state === "locked" ? (
                             <span className="text-zinc-400">locked</span>
-                          ) : (
+                          ) : win.state === "open" ? (
                             <span className="text-emerald-600">open</span>
+                          ) : (
+                            <span className="text-zinc-400">
+                              opens {formatDate(win.opensAt.toISOString())}
+                            </span>
                           )}
                         </div>
                       </div>

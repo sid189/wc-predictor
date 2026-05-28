@@ -59,10 +59,13 @@ export async function savePrediction(input: PredictionInput): Promise<ActionResu
   );
 
   if (error) {
-    // RLS denial here usually means the match has already kicked off. Log the
-    // real cause server-side; show the user a friendly message.
+    // RLS denial here means the match is outside the 48h prediction window
+    // (either too early, or already kicked off).
     console.error("savePrediction failed", { matchId: input.matchId, error });
-    return { ok: false, error: "Could not save — the match may have already started." };
+    return {
+      ok: false,
+      error: "Could not save — predictions open 48 hours before kickoff and lock at kickoff.",
+    };
   }
 
   revalidatePath("/matches");

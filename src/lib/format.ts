@@ -40,3 +40,23 @@ export function formatTime(iso: string): string {
     minute: "2-digit",
   });
 }
+
+/** Prediction window: opens this many hours before kickoff, closes at kickoff.
+ *  Mirrors the RLS rule in supabase/migrations/0006_prediction_window.sql — keep
+ *  the two in sync if you ever change the window. */
+export const PREDICTION_WINDOW_HOURS = 48;
+
+export type WindowState = "pending" | "open" | "locked";
+
+export function predictionWindow(kickoffIso: string): {
+  state: WindowState;
+  opensAt: Date;
+  locksAt: Date;
+} {
+  const locksAt = new Date(kickoffIso);
+  const opensAt = new Date(locksAt.getTime() - PREDICTION_WINDOW_HOURS * 3_600_000);
+  const now = Date.now();
+  if (now >= locksAt.getTime()) return { state: "locked", opensAt, locksAt };
+  if (now < opensAt.getTime()) return { state: "pending", opensAt, locksAt };
+  return { state: "open", opensAt, locksAt };
+}

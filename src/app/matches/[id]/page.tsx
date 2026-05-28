@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PredictionForm } from "@/components/PredictionForm";
-import { STAGE_LABELS, formatKickoff, hasKickedOff } from "@/lib/format";
+import { Flag } from "@/components/Flag";
+import { STAGE_LABELS, formatKickoff, hasKickedOff, predictionWindow } from "@/lib/format";
 import type { Match, MatchResult, Prediction, Profile, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -63,8 +64,16 @@ export default async function MatchPage({
           {m.stadium ? ` · ${m.stadium}` : ""}
           {m.city ? `, ${m.city}` : ""}
         </div>
-        <h1 className="text-2xl font-semibold">
-          {teamA.name} <span className="text-zinc-400">vs</span> {teamB.name}
+        <h1 className="mt-1 flex flex-wrap items-center gap-3 text-2xl font-semibold">
+          <span className="inline-flex items-center gap-2">
+            <Flag teamName={teamA.name} size={28} />
+            {teamA.name}
+          </span>
+          <span className="text-zinc-400">vs</span>
+          <span className="inline-flex items-center gap-2">
+            <Flag teamName={teamB.name} size={28} />
+            {teamB.name}
+          </span>
         </h1>
       </div>
 
@@ -80,12 +89,24 @@ export default async function MatchPage({
       )}
 
       <section className="rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]">
-        {locked ? (
-          <p className="text-sm text-zinc-500">
-            This match is locked — predictions closed at kickoff.
-          </p>
-        ) : (
-          <PredictionForm
+        {(() => {
+          const win = predictionWindow(m.kickoff_at);
+          if (win.state === "locked") {
+            return (
+              <p className="text-sm text-zinc-500">
+                This match is locked — predictions closed at kickoff.
+              </p>
+            );
+          }
+          if (win.state === "pending") {
+            return (
+              <p className="text-sm text-zinc-500">
+                Predictions open {formatKickoff(win.opensAt.toISOString())} (48 hours before kickoff).
+              </p>
+            );
+          }
+          return (
+            <PredictionForm
             matchId={m.id}
             isKnockout={m.is_knockout}
             teamsKnown={Boolean(m.team_a_id && m.team_b_id)}
@@ -105,7 +126,8 @@ export default async function MatchPage({
                 : undefined
             }
           />
-        )}
+          );
+        })()}
       </section>
 
       {locked && (

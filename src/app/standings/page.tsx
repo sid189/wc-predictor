@@ -6,6 +6,7 @@ import {
   type GroupMatch,
   type StandingRow,
 } from "@/lib/standings";
+import { Flag } from "@/components/Flag";
 import type { Match, MatchResult, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,7 @@ export default async function StandingsPage() {
                   >
                     <td className="py-1">
                       <span className="mr-1 text-zinc-400">{r.rank}</span>
+                      <Flag teamName={teamName.get(r.teamId)} size={16} className="mr-1.5 align-text-bottom" />
                       {teamName.get(r.teamId) ?? "—"}
                       {r.unresolved && <span className="ml-1 text-amber-600" title="tie-break needed">⚑</span>}
                     </td>
@@ -113,8 +115,9 @@ export default async function StandingsPage() {
                   : "border-black/[.06] text-zinc-500 dark:border-white/[.08]"
               }`}
             >
-              <span>
-                <span className="mr-2 text-zinc-400">{i + 1}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="mr-1 text-zinc-400">{i + 1}</span>
+                <Flag teamName={teamName.get(t.row.teamId)} size={16} />
                 {teamName.get(t.row.teamId) ?? "—"}{" "}
                 <span className="text-zinc-400">(Group {t.group})</span>
               </span>
