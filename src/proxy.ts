@@ -7,8 +7,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on all paths except Next internals and static assets.
+  // Run on all paths except API routes, Next internals, and static assets.
+  // API routes (like /api/cron/*) handle their own auth (Bearer token, etc.).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
