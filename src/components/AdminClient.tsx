@@ -9,7 +9,8 @@ import {
   reseedAllGroups,
   saveTournamentConfig,
 } from "@/app/actions/admin";
-import { STAGE_LABELS, formatKickoff } from "@/lib/format";
+import { STAGE_LABELS } from "@/lib/format";
+import { LocalTime } from "@/components/LocalTime";
 import type { Match, MatchResult, Team, TournamentConfig } from "@/lib/types";
 
 interface Props {
@@ -234,7 +235,7 @@ function ResultRow({
   return (
     <li className="space-y-2 p-3">
       <div className="text-xs text-zinc-500">
-        {STAGE_LABELS[match.stage]} · {formatKickoff(match.kickoff_at)}
+        {STAGE_LABELS[match.stage]} · <LocalTime iso={match.kickoff_at} preset="datetime" />
       </div>
 
       {needsTeams && <AssignTeams match={match} teams={teams} labelA={labelA} labelB={labelB} />}

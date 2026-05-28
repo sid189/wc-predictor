@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PredictionForm } from "@/components/PredictionForm";
 import { Flag } from "@/components/Flag";
-import { STAGE_LABELS, formatKickoff, hasKickedOff, predictionWindow } from "@/lib/format";
+import { LocalTime } from "@/components/LocalTime";
+import { STAGE_LABELS, hasKickedOff, predictionWindow } from "@/lib/format";
 import type { Match, MatchResult, Prediction, Profile, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,8 @@ export default async function MatchPage({
         </Link>
         <div className="mt-1 text-xs text-zinc-500">
           {STAGE_LABELS[m.stage]}
-          {m.group_label ? ` · Group ${m.group_label}` : ""} · {formatKickoff(m.kickoff_at)}
+          {m.group_label ? ` · Group ${m.group_label}` : ""} ·{" "}
+          <LocalTime iso={m.kickoff_at} preset="datetime" />
           {m.stadium ? ` · ${m.stadium}` : ""}
           {m.city ? `, ${m.city}` : ""}
         </div>
@@ -101,7 +103,7 @@ export default async function MatchPage({
           if (win.state === "pending") {
             return (
               <p className="text-sm text-zinc-500">
-                Predictions open {formatKickoff(win.opensAt.toISOString())} (48 hours before kickoff).
+                Predictions open <LocalTime iso={win.opensAt.toISOString()} preset="datetime" /> (48 hours before kickoff).
               </p>
             );
           }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { STAGE_LABELS, formatDate, formatTime, hasKickedOff, predictionWindow } from "@/lib/format";
+import { STAGE_LABELS, formatDate, hasKickedOff, predictionWindow } from "@/lib/format";
 import { Flag } from "@/components/Flag";
+import { LocalTime } from "@/components/LocalTime";
 import type { Match, Prediction, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export default async function MatchesPage({
         groups.map((g) => (
           <div key={g.date} className="space-y-2">
             <h2 className="pt-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              {g.date}
+              <LocalTime iso={g.items[0].kickoff_at} preset="date" />
             </h2>
             <ul className="space-y-2">
               {g.items.map((m) => {
@@ -108,7 +109,7 @@ export default async function MatchesPage({
                     >
                       <div className="flex-1">
                         <div className="text-xs text-zinc-500">
-                          {formatTime(m.kickoff_at)} · {STAGE_LABELS[m.stage]}
+                          <LocalTime iso={m.kickoff_at} preset="time" /> · {STAGE_LABELS[m.stage]}
                           {m.group_label ? ` · Group ${m.group_label}` : ""}
                           {m.city ? ` · ${m.city}` : ""}
                         </div>
@@ -142,7 +143,7 @@ export default async function MatchesPage({
                             <span className="text-emerald-600">open</span>
                           ) : (
                             <span className="text-zinc-400">
-                              opens {formatDate(win.opensAt.toISOString())}
+                              opens <LocalTime iso={win.opensAt.toISOString()} preset="date" />
                             </span>
                           )}
                         </div>
