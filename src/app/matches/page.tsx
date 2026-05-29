@@ -21,8 +21,8 @@ export default async function MatchesPage({
   } = await supabase.auth.getUser();
 
   const [{ data: allMatches }, { data: teams }, { data: myPreds }] = await Promise.all([
-    // Exclude friendlies — they get their own page at /friendlies.
-    supabase.from("matches").select("*").neq("stage", "friendly").order("kickoff_at"),
+    // Exclude friendlies and UCL — they get their own pages.
+    supabase.from("matches").select("*").not("stage", "in", "(friendly,ucl)").order("kickoff_at"),
     supabase.from("teams").select("*"),
     supabase.from("predictions").select("*").eq("user_id", user!.id),
   ]);

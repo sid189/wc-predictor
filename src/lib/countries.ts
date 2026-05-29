@@ -65,3 +65,17 @@ export function flagCodeFor(teamName: string | null | undefined): string | null 
   if (!teamName) return null;
   return TEAM_TO_FLAG[teamName] ?? null;
 }
+
+// Crest URLs for club sides (used in UCL fixtures). Wikimedia-hosted thumbnails
+// — should the user want true self-hosting, drop SVGs in public/ and point here.
+const CLUB_LOGOS: Record<string, string> = {
+  "Paris Saint-Germain":
+    "https://upload.wikimedia.org/wikipedia/en/thumb/8/86/Paris_Saint-Germain_F.C..svg/120px-Paris_Saint-Germain_F.C..svg.png",
+  "Arsenal":
+    "https://upload.wikimedia.org/wikipedia/en/thumb/5/53/Arsenal_FC.svg/120px-Arsenal_FC.svg.png",
+};
+
+export function clubLogoFor(teamName: string | null | undefined): string | null {
+  if (!teamName) return null;
+  return CLUB_LOGOS[teamName] ?? null;
+}

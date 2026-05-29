@@ -8,7 +8,8 @@ export type MatchStage =
   | "semi_final"
   | "third_place"
   | "final"
-  | "friendly";
+  | "friendly"
+  | "ucl";
 
 export type SpecialKind = "winner" | "golden_boot";
 
