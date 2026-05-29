@@ -58,6 +58,8 @@ const TEAM_TO_FLAG: Record<string, string> = {
   "Lebanon": "lb",
   "Sudan": "sd",
   "North Macedonia": "mk",
+  // Past Hall-of-Fame champions whose nations aren't in the WC 2026 seed.
+  "Italy": "it",
 };
 
 /** Returns the FlagCDN code for a team name, or null for unknown / placeholder names. */

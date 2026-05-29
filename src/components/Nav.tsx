@@ -24,6 +24,7 @@ export async function Nav() {
     { href: "/standings", label: "Standings" },
     { href: "/special", label: "Winner & Boot" },
     { href: "/leaderboard", label: "Leaderboard" },
+    { href: "/hall-of-fame", label: "Hall of Fame" },
   ];
 
   return (
