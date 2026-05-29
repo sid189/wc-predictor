@@ -51,6 +51,13 @@ const TEAM_TO_FLAG: Record<string, string> = {
   "USA": "us",
   "Uruguay": "uy",
   "Uzbekistan": "uz",
+  // Non-WC nations added for friendlies coverage.
+  "Gambia": "gm",
+  "Nicaragua": "ni",
+  "Andorra": "ad",
+  "Lebanon": "lb",
+  "Sudan": "sd",
+  "North Macedonia": "mk",
 };
 
 /** Returns the FlagCDN code for a team name, or null for unknown / placeholder names. */

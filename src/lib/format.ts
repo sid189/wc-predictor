@@ -8,6 +8,7 @@ export const STAGE_LABELS: Record<MatchStage, string> = {
   semi_final: "Semi-final",
   third_place: "Third place",
   final: "Final",
+  friendly: "Friendly",
 };
 
 export function formatKickoff(iso: string): string {
