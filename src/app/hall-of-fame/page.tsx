@@ -1,19 +1,51 @@
+/* eslint-disable @next/next/no-img-element */
 import { Flag } from "@/components/Flag";
 
 interface Winner {
   year: number;
   name: string;
   tournament: string;
+  tournamentLogo: string;
   championTeam: string;
   note?: string;
 }
 
+// Wikipedia's Special:FilePath redirects to the canonical image URL — more
+// stable than caching upload.wikimedia.org thumbnail paths.
+const wiki = (file: string) =>
+  `https://en.wikipedia.org/wiki/Special:FilePath/${file}`;
+
 // Hardcoded — historical and rarely changes. Append a new row each cycle.
 const WINNERS: Winner[] = [
-  { year: 2018, name: "Soham Karkhanis", note: "*", tournament: "FIFA World Cup 2018", championTeam: "France" },
-  { year: 2021, name: "Siddharth Deshpande", tournament: "UEFA EURO 2020", championTeam: "Italy" },
-  { year: 2022, name: "Varun Gajendragadkar", tournament: "FIFA World Cup 2022", championTeam: "Argentina" },
-  { year: 2024, name: "Soham Karkhanis", tournament: "UEFA Euro 2024", championTeam: "Spain" },
+  {
+    year: 2018,
+    name: "Soham Karkhanis",
+    note: "*",
+    tournament: "FIFA World Cup 2018",
+    tournamentLogo: wiki("2018_FIFA_World_Cup.svg"),
+    championTeam: "France",
+  },
+  {
+    year: 2021,
+    name: "Siddharth Deshpande",
+    tournament: "UEFA EURO 2020",
+    tournamentLogo: wiki("UEFA_Euro_2020_logo.svg"),
+    championTeam: "Italy",
+  },
+  {
+    year: 2022,
+    name: "Varun Gajendragadkar",
+    tournament: "FIFA World Cup 2022",
+    tournamentLogo: wiki("2022_FIFA_World_Cup.svg"),
+    championTeam: "Argentina",
+  },
+  {
+    year: 2024,
+    name: "Soham Karkhanis",
+    tournament: "UEFA Euro 2024",
+    tournamentLogo: wiki("UEFA_Euro_2024_Logo.svg"),
+    championTeam: "Spain",
+  },
 ];
 
 export default function HallOfFamePage() {
@@ -46,7 +78,20 @@ export default function HallOfFamePage() {
                 {w.name}
                 {w.note && <span className="text-zinc-400">{w.note}</span>}
               </td>
-              <td className="text-zinc-600 dark:text-zinc-400">{w.tournament}</td>
+              <td className="text-zinc-600 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-2">
+                  <img
+                    src={w.tournamentLogo}
+                    width={22}
+                    height={22}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    className="inline-block h-[22px] w-[22px] object-contain"
+                  />
+                  {w.tournament}
+                </span>
+              </td>
               <td>
                 <span className="inline-flex items-center gap-1.5">
                   <Flag teamName={w.championTeam} size={18} />
