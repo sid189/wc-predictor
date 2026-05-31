@@ -42,6 +42,34 @@ export function PredictionForm({
   const showKnockoutExtras = isKnockout && teamsKnown;
   const [ftA, setFtA] = useState(numOrEmpty(initial?.ft_a));
   const [ftB, setFtB] = useState(numOrEmpty(initial?.ft_b));
+
+  // Outcome dropdown — drives + reflects the FT score numbers.
+  type Outcome = "" | "a" | "draw" | "b";
+  const deriveOutcome = (a: string, b: string): Outcome => {
+    if (a === "" || b === "") return "";
+    const na = Number(a);
+    const nb = Number(b);
+    if (na > nb) return "a";
+    if (na < nb) return "b";
+    return "draw";
+  };
+  const outcome = deriveOutcome(ftA, ftB);
+
+  function pickOutcome(value: Outcome) {
+    if (value === "a") {
+      setFtA("1");
+      setFtB("0");
+    } else if (value === "b") {
+      setFtA("0");
+      setFtB("1");
+    } else if (value === "draw") {
+      setFtA("0");
+      setFtB("0");
+    } else {
+      setFtA("");
+      setFtB("");
+    }
+  }
   const [etA, setEtA] = useState(numOrEmpty(initial?.et_a));
   const [etB, setEtB] = useState(numOrEmpty(initial?.et_b));
   const [penA, setPenA] = useState(numOrEmpty(initial?.pen_a));
@@ -73,11 +101,9 @@ export function PredictionForm({
       setMsg({ ok: false, text: "Enter extra-time goals for both teams, or leave both blank." });
       return;
     }
-    // A shootout needs both scores and a winner, or none of them.
-    const penAny = pen_a != null || pen_b != null || winner != null;
-    const penAll = pen_a != null && pen_b != null && winner != null;
-    if (penAny && !penAll) {
-      setMsg({ ok: false, text: "For a shootout, enter both penalty scores and pick the winner." });
+    // A shootout needs both penalty scores together (winner is implicit).
+    if ((pen_a == null) !== (pen_b == null)) {
+      setMsg({ ok: false, text: "For a shootout, enter both penalty scores." });
       return;
     }
 
@@ -142,6 +168,22 @@ export function PredictionForm({
         <span className="text-right">{teamB.name}</span>
       </div>
 
+      <div className="flex items-center gap-3">
+        <span className="w-28 text-sm text-zinc-500" title="Based on the full-time score only — ET and penalties don't change this.">
+          FT outcome
+        </span>
+        <select
+          value={outcome}
+          onChange={(e) => pickOutcome(e.target.value as Outcome)}
+          className="rounded-lg border border-black/[.12] bg-transparent px-2 py-1 dark:border-white/[.2]"
+        >
+          <option value="">—</option>
+          <option value="a">{teamA.name} wins</option>
+          <option value="draw">Draw</option>
+          <option value="b">{teamB.name} wins</option>
+        </select>
+      </div>
+
       {scoreRow("Full time", ftA, setFtA, ftB, setFtB)}
 
       {isKnockout && !teamsKnown && (
@@ -153,7 +195,9 @@ export function PredictionForm({
       {showKnockoutExtras && (
         <>
           <p className="pt-2 text-xs text-zinc-500">
-            Optional — only if the match goes beyond 90 minutes.
+            Optional — predict these even if you picked a decisive FT outcome.
+            They score independently against the actual match (+1 each if exact),
+            so they&apos;re a free backup if the match unexpectedly goes the distance.
           </p>
           {scoreRow("Extra-time goals", etA, setEtA, etB, setEtB)}
           {scoreRow("Penalties", penA, setPenA, penB, setPenB)}

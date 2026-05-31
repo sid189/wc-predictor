@@ -20,17 +20,17 @@ Next.js (App Router) + TypeScript + Tailwind + Supabase (Postgres / Auth).
 | Outcome | Points |
 | --- | --- |
 | Correct full-time outcome / draw | +1 |
-| Exact full-time score | +2 *(replaces the +1; a perfect FT = 2)* |
+| Exact full-time score | +3 *(replaces the +1; a perfect FT = 3)* |
 | Exact extra-time goals (knockout) | +1 |
-| Exact penalty score **and** winner (knockout) | +1 |
+| Exact penalty shootout score (knockout) | +1 |
 | Tournament winner — picked before tournament | +5 |
 | Tournament winner — changed after group stage | +2 |
 | Golden Boot — picked before tournament | +5 |
 | Golden Boot — changed after group stage | +2 |
 
-All logic lives in `src/lib/scoring.ts` (pure functions, unit-tested in
-`scoring.test.ts`). If you'd rather the FT outcome point *stack* on top of the
-exact-score point, that's a one-line change in `scoreFullTime`.
+A perfect single match going through FT → ET → penalties caps at **+5**
+(3 + 1 + 1). All logic lives in `src/lib/scoring.ts` (pure functions,
+unit-tested in `scoring.test.ts`).
 
 ## Setup
 

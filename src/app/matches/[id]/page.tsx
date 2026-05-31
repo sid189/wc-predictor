@@ -24,11 +24,23 @@ export default async function MatchPage({
   if (!match) notFound();
   const m = match as Match;
 
-  const [{ data: teams }, { data: myPred }, { data: result }] = await Promise.all([
-    supabase.from("teams").select("*"),
-    supabase.from("predictions").select("*").eq("match_id", id).eq("user_id", user!.id).maybeSingle(),
-    supabase.from("match_results").select("*").eq("match_id", id).maybeSingle(),
-  ]);
+  const [{ data: teams }, { data: myPred }, { data: result }, { data: profiles }, { data: submitterIds }] =
+    await Promise.all([
+      supabase.from("teams").select("*"),
+      supabase.from("predictions").select("*").eq("match_id", id).eq("user_id", user!.id).maybeSingle(),
+      supabase.from("match_results").select("*").eq("match_id", id).maybeSingle(),
+      supabase.from("profiles").select("id, display_name"),
+      // RPC returns just the user_ids (no prediction values) — safe pre-kickoff.
+      supabase.rpc("match_submitters", { p_match_id: id }),
+    ]);
+  const nameMap = new Map(
+    (profiles ?? []).map((p: Pick<Profile, "id" | "display_name">) => [p.id, p.display_name]),
+  );
+  // RPC returns setof uuid → PostgREST shape is [{match_submitters: "<uuid>"}, …].
+  const submitterRows = (submitterIds ?? []) as { match_submitters: string }[];
+  const submitterNames = submitterRows
+    .map((r) => nameMap.get(r.match_submitters) ?? "?")
+    .sort();
 
   const teamMap = new Map((teams ?? []).map((t: Team) => [t.id, t]));
   const teamA = {
@@ -45,12 +57,11 @@ export default async function MatchPage({
   // After kickoff, RLS lets us read everyone's predictions for this match.
   let allPreds: (Prediction & { name: string })[] = [];
   if (locked) {
-    const [{ data: preds }, { data: profiles }] = await Promise.all([
-      supabase.from("predictions").select("*").eq("match_id", id),
-      supabase.from("profiles").select("id, display_name"),
-    ]);
-    const nameMap = new Map((profiles ?? []).map((p: Pick<Profile, "id" | "display_name">) => [p.id, p.display_name]));
-    allPreds = (preds ?? []).map((p: Prediction) => ({ ...p, name: nameMap.get(p.user_id) ?? "?" }));
+    const { data: preds } = await supabase.from("predictions").select("*").eq("match_id", id);
+    allPreds = (preds ?? []).map((p: Prediction) => ({
+      ...p,
+      name: nameMap.get(p.user_id) ?? "?",
+    }));
   }
 
   return (
@@ -132,6 +143,20 @@ export default async function MatchPage({
         })()}
       </section>
 
+      {!locked && submitterNames.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-zinc-500">
+            Predicted ({submitterNames.length})
+          </h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {submitterNames.join(", ")}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">
+            Picks are revealed at kickoff.
+          </p>
+        </section>
+      )}
+
       {locked && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-zinc-500">Everyone&apos;s picks</h2>
@@ -139,15 +164,35 @@ export default async function MatchPage({
             {allPreds.length === 0 && (
               <li className="p-3 text-sm text-zinc-400">No predictions were made.</li>
             )}
-            {allPreds.map((p) => (
-              <li key={p.id} className="flex items-center justify-between p-3 text-sm">
+            {allPreds.map((p) => {
+              const winnerName = p.pen_winner_team_id
+                ? p.pen_winner_team_id === teamA.id
+                  ? teamA.name
+                  : p.pen_winner_team_id === teamB.id
+                    ? teamB.name
+                    : null
+                : null;
+              return (
+              <li key={p.id} className="flex items-center justify-between gap-3 p-3 text-sm">
                 <span>{p.name}</span>
-                <span className="font-mono">
-                  {p.ft_a}–{p.ft_b}
+                <span className="font-mono text-right">
+                  <span>FT {p.ft_a}–{p.ft_b}</span>
+                  {p.et_a != null && p.et_b != null && (
+                    <span className="ml-2 text-zinc-500">
+                      · ET {p.et_a}–{p.et_b}
+                    </span>
+                  )}
+                  {p.pen_a != null && p.pen_b != null && (
+                    <span className="ml-2 text-zinc-500">
+                      · Pens {p.pen_a}–{p.pen_b}
+                      {winnerName ? ` (${winnerName})` : ""}
+                    </span>
+                  )}
                   {p.scored && <span className="ml-2 text-emerald-600">+{p.points}</span>}
                 </span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       )}

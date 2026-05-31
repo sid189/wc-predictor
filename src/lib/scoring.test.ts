@@ -21,8 +21,8 @@ const base: ScoreInput = {
 const mk = (o: Partial<ScoreInput>): ScoreInput => ({ ...base, ...o });
 
 describe("scoreFullTime", () => {
-  it("awards 2 for an exact score", () => {
-    expect(scoreFullTime({ ft_a: 2, ft_b: 1 }, { ft_a: 2, ft_b: 1 })).toBe(2);
+  it("awards 3 for an exact score", () => {
+    expect(scoreFullTime({ ft_a: 2, ft_b: 1 }, { ft_a: 2, ft_b: 1 })).toBe(3);
   });
   it("awards 1 for correct outcome but wrong score", () => {
     expect(scoreFullTime({ ft_a: 3, ft_b: 1 }, { ft_a: 2, ft_b: 1 })).toBe(1);
@@ -58,28 +58,22 @@ describe("scoreExtraTime", () => {
 
 describe("scorePenalties", () => {
   const res = mk({ ft_a: 1, ft_b: 1, pen_a: 4, pen_b: 3, winner_team_id: "A" });
-  it("awards 1 for exact shootout score and winner", () => {
-    expect(
-      scorePenalties(mk({ pen_a: 4, pen_b: 3, winner_team_id: "A" }), res),
-    ).toBe(1);
+  it("awards 1 for the exact shootout score", () => {
+    expect(scorePenalties(mk({ pen_a: 4, pen_b: 3 }), res)).toBe(1);
   });
-  it("awards 0 if the winner is wrong even with right score", () => {
-    expect(
-      scorePenalties(mk({ pen_a: 4, pen_b: 3, winner_team_id: "B" }), res),
-    ).toBe(0);
+  it("awards 0 when the shootout score is wrong", () => {
+    expect(scorePenalties(mk({ pen_a: 5, pen_b: 4 }), res)).toBe(0);
   });
   it("awards 0 when there was no shootout", () => {
-    expect(
-      scorePenalties(mk({ pen_a: 4, pen_b: 3, winner_team_id: "A" }), mk({ ft_a: 2, ft_b: 0 })),
-    ).toBe(0);
+    expect(scorePenalties(mk({ pen_a: 4, pen_b: 3 }), mk({ ft_a: 2, ft_b: 0 }))).toBe(0);
   });
 });
 
 describe("scorePrediction (combined)", () => {
-  it("stacks ET and penalties on top of FT", () => {
+  it("stacks ET and penalties on top of FT — perfect match = 5", () => {
     const res = mk({ ft_a: 1, ft_b: 1, et_a: 0, et_b: 0, pen_a: 5, pen_b: 4, winner_team_id: "A" });
-    const pred = mk({ ft_a: 1, ft_b: 1, et_a: 0, et_b: 0, pen_a: 5, pen_b: 4, winner_team_id: "A" });
-    expect(scorePrediction(pred, res)).toBe(2 + 1 + 1); // exact FT + exact ET + pens
+    const pred = mk({ ft_a: 1, ft_b: 1, et_a: 0, et_b: 0, pen_a: 5, pen_b: 4 });
+    expect(scorePrediction(pred, res)).toBe(3 + 1 + 1);
   });
 });
 

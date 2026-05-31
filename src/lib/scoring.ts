@@ -2,22 +2,22 @@
 //
 // Rules:
 //   FT (tiered, not additive):
-//     - exact FT score        => +2  (this already implies correct outcome)
-//     - else correct outcome  => +1  (win/lose/draw)
+//     - exact FT score        => +3  (this already implies correct outcome)
+//     - else correct outcome  => +1  (win / lose / draw)
 //   ET (knockout, additive):
-//     - exact ET goals (both) => +1
+//     - exact ET goals (both teams) => +1
 //   Penalties (knockout, additive):
-//     - exact shootout score AND correct winner => +1
+//     - exact shootout score => +1   (winner is implicit in the score)
 //   Special picks (additive, scored once at tournament end):
 //     - correct + still the pre-tournament pick => +5
 //     - correct but changed after group stage    => +2
 //
-// NOTE: FT is tiered (perfect FT = 2, not 3). If you'd rather the outcome point
-// stack on top of the exact point, change scoreFullTime to add them.
+// Per-match ceiling: a single match going through FT → ET → penalties caps
+// at +5 (3 + 1 + 1) if every component is exact.
 
 export const POINTS = {
   FT_OUTCOME: 1,
-  FT_EXACT: 2,
+  FT_EXACT: 3,
   ET_EXACT: 1,
   PEN_EXACT: 1,
   SPECIAL_INITIAL: 5,
@@ -61,17 +61,12 @@ export function scoreExtraTime(pred: ScoreInput, res: ScoreInput): number {
   return pred.et_a === res.et_a && pred.et_b === res.et_b ? POINTS.ET_EXACT : 0;
 }
 
-/** Penalty component: +1 only if shootout score AND winner are all correct. */
+/** Penalty component: +1 only if the exact shootout score is predicted.
+ *  The winner is implicit in the score (whoever scored more wins). */
 export function scorePenalties(pred: ScoreInput, res: ScoreInput): number {
-  if (res.pen_a == null || res.pen_b == null || res.winner_team_id == null)
-    return 0; // no shootout
-  if (pred.pen_a == null || pred.pen_b == null || pred.winner_team_id == null)
-    return 0; // user made no penalty pick
-  return pred.pen_a === res.pen_a &&
-    pred.pen_b === res.pen_b &&
-    pred.winner_team_id === res.winner_team_id
-    ? POINTS.PEN_EXACT
-    : 0;
+  if (res.pen_a == null || res.pen_b == null) return 0; // no shootout
+  if (pred.pen_a == null || pred.pen_b == null) return 0; // user made no penalty pick
+  return pred.pen_a === res.pen_a && pred.pen_b === res.pen_b ? POINTS.PEN_EXACT : 0;
 }
 
 /** Total points for one match prediction against the recorded result. */
