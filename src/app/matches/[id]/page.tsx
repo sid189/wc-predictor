@@ -38,10 +38,11 @@ export default async function MatchPage({
   );
   // RPC returns setof uuid → PostgREST shape is [{match_submitters: "<uuid>"}, …].
   const submitterRows = (submitterIds ?? []) as { match_submitters: string }[];
-  // Anonymous reveal pre-kickoff: one "?" per submitter so the count is
-  // visible but identities stay hidden until kickoff. Names + picks come out
-  // together in the post-kickoff "Everyone's picks" section.
-  const submitterPlaceholders = submitterRows.map(() => "?");
+  // Reveal names as soon as someone predicts; picks themselves stay hidden
+  // until kickoff. Fallback "?" only if a user_id can't be matched.
+  const submitterNames = submitterRows
+    .map((r) => nameMap.get(r.match_submitters) ?? "?")
+    .sort();
 
   const teamMap = new Map((teams ?? []).map((t: Team) => [t.id, t]));
   const teamA = {
@@ -144,16 +145,16 @@ export default async function MatchPage({
         })()}
       </section>
 
-      {!locked && submitterPlaceholders.length > 0 && (
+      {!locked && submitterNames.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold text-zinc-500">
-            Predicted ({submitterPlaceholders.length})
+            Predicted ({submitterNames.length})
           </h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {submitterPlaceholders.join(" · ")}
+            {submitterNames.join(", ")}
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Names and picks are revealed at kickoff.
+            Picks are revealed at kickoff.
           </p>
         </section>
       )}
