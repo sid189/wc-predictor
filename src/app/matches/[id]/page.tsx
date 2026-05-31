@@ -36,12 +36,11 @@ export default async function MatchPage({
   const nameMap = new Map(
     (profiles ?? []).map((p: Pick<Profile, "id" | "display_name">) => [p.id, p.display_name]),
   );
-  // RPC returns setof uuid → PostgREST shape is [{match_submitters: "<uuid>"}, …].
-  const submitterRows = (submitterIds ?? []) as { match_submitters: string }[];
-  // Reveal names as soon as someone predicts; picks themselves stay hidden
-  // until kickoff. Fallback "?" only if a user_id can't be matched.
+  // RPC now returns table(user_id uuid, display_name text) — names come back
+  // directly so we don't depend on PostgREST scalar shape or profiles RLS.
+  const submitterRows = (submitterIds ?? []) as { user_id: string; display_name: string }[];
   const submitterNames = submitterRows
-    .map((r) => nameMap.get(r.match_submitters) ?? "?")
+    .map((r) => r.display_name ?? "?")
     .sort();
 
   const teamMap = new Map((teams ?? []).map((t: Team) => [t.id, t]));
