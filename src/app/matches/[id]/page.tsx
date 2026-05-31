@@ -36,11 +36,21 @@ export default async function MatchPage({
   const nameMap = new Map(
     (profiles ?? []).map((p: Pick<Profile, "id" | "display_name">) => [p.id, p.display_name]),
   );
-  // RPC now returns table(user_id uuid, display_name text) — names come back
-  // directly so we don't depend on PostgREST scalar shape or profiles RLS.
-  const submitterRows = (submitterIds ?? []) as { user_id: string; display_name: string }[];
-  const submitterNames = submitterRows
-    .map((r) => r.display_name ?? "?")
+  // RPC (post-migration 0011) returns {user_id, display_name}. Be defensive
+  // about shape in case the migration hasn't applied yet or PostgREST returns
+  // a different format — fall back to nameMap lookup when needed.
+  const rawSubmitters = (submitterIds ?? []) as unknown[];
+  const submitterNames = rawSubmitters
+    .map((r): string => {
+      if (typeof r === "string") return nameMap.get(r) ?? "?";
+      if (r && typeof r === "object") {
+        const obj = r as Record<string, unknown>;
+        if (typeof obj.display_name === "string" && obj.display_name) return obj.display_name;
+        const uid = (obj.user_id ?? obj.match_submitters) as string | undefined;
+        if (typeof uid === "string") return nameMap.get(uid) ?? "?";
+      }
+      return "?";
+    })
     .sort();
 
   const teamMap = new Map((teams ?? []).map((t: Team) => [t.id, t]));
