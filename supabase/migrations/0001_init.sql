@@ -280,33 +280,46 @@ alter table public.tournament_config   enable row level security;
 alter table public.special_predictions enable row level security;
 
 -- profiles: everyone signed in can read; you can edit your own row.
+drop policy if exists "profiles_select" on public.profiles;
 create policy "profiles_select" on public.profiles
   for select to authenticated using (true);
+drop policy if exists "profiles_insert_self" on public.profiles;
 create policy "profiles_insert_self" on public.profiles
   for insert to authenticated with check (id = auth.uid());
+drop policy if exists "profiles_update_self" on public.profiles;
 create policy "profiles_update_self" on public.profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
 -- Reference data: readable by all signed-in users, writable by admins only.
 -- (Admin server actions use the service role, which bypasses RLS; these
 --  policies are defense-in-depth for anon/authenticated keys.)
+drop policy if exists "teams_select" on public.teams;
 create policy "teams_select" on public.teams for select to authenticated using (true);
+drop policy if exists "teams_admin_write" on public.teams;
 create policy "teams_admin_write" on public.teams for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "players_select" on public.players;
 create policy "players_select" on public.players for select to authenticated using (true);
+drop policy if exists "players_admin_write" on public.players;
 create policy "players_admin_write" on public.players for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "matches_select" on public.matches;
 create policy "matches_select" on public.matches for select to authenticated using (true);
+drop policy if exists "matches_admin_write" on public.matches;
 create policy "matches_admin_write" on public.matches for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "results_select" on public.match_results;
 create policy "results_select" on public.match_results for select to authenticated using (true);
+drop policy if exists "results_admin_write" on public.match_results;
 create policy "results_admin_write" on public.match_results for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
+drop policy if exists "config_select" on public.tournament_config;
 create policy "config_select" on public.tournament_config for select to authenticated using (true);
+drop policy if exists "config_admin_write" on public.tournament_config;
 create policy "config_admin_write" on public.tournament_config for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
@@ -314,6 +327,7 @@ create policy "config_admin_write" on public.tournament_config for all to authen
 --   * read your own anytime;
 --   * read everyone else's ONLY after that match has kicked off (hidden-until-lock);
 --   * insert/update your own ONLY before kickoff (lock-at-kickoff).
+drop policy if exists "predictions_select" on public.predictions;
 create policy "predictions_select" on public.predictions
   for select to authenticated
   using (
@@ -321,6 +335,7 @@ create policy "predictions_select" on public.predictions
     or exists (select 1 from public.matches m
                where m.id = match_id and m.kickoff_at <= now())
   );
+drop policy if exists "predictions_insert_self" on public.predictions;
 create policy "predictions_insert_self" on public.predictions
   for insert to authenticated
   with check (
@@ -328,6 +343,7 @@ create policy "predictions_insert_self" on public.predictions
     and exists (select 1 from public.matches m
                 where m.id = match_id and m.kickoff_at > now())
   );
+drop policy if exists "predictions_update_self" on public.predictions;
 create policy "predictions_update_self" on public.predictions
   for update to authenticated
   using (
@@ -344,6 +360,7 @@ create policy "predictions_update_self" on public.predictions
 -- special_predictions:
 --   * read your own anytime; read others' once the tournament has started;
 --   * insert/update your own (the trigger enforces phase windows + is_initial).
+drop policy if exists "special_select" on public.special_predictions;
 create policy "special_select" on public.special_predictions
   for select to authenticated
   using (
@@ -351,7 +368,9 @@ create policy "special_select" on public.special_predictions
     or exists (select 1 from public.tournament_config c
                where c.id = 1 and c.starts_at is not null and c.starts_at <= now())
   );
+drop policy if exists "special_insert_self" on public.special_predictions;
 create policy "special_insert_self" on public.special_predictions
   for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "special_update_self" on public.special_predictions;
 create policy "special_update_self" on public.special_predictions
   for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

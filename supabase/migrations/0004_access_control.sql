@@ -16,6 +16,7 @@ alter table public.allowed_emails enable row level security;
 
 -- Only admins can view/manage the guest list (service role bypasses RLS; the
 -- signup trigger below is SECURITY DEFINER so it reads the table regardless).
+drop policy if exists "allowed_emails_admin" on public.allowed_emails;
 create policy "allowed_emails_admin" on public.allowed_emails
   for all to authenticated
   using (public.is_admin()) with check (public.is_admin());
