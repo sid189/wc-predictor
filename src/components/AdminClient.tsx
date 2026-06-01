@@ -336,14 +336,28 @@ export function AdminClient({ matches, teams, results, config }: Props) {
   const resultMap = new Map(results.map((r) => [r.match_id, r]));
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Admin</h1>
-        <Link
-          href="/admin/data"
-          className="rounded-full border border-black/[.12] px-3 py-1 text-sm hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
-        >
-          Teams & players →
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/api/admin/export/predictions"
+            className="rounded-full border border-black/[.12] px-3 py-1 text-sm hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+          >
+            ⬇ Predictions CSV
+          </a>
+          <a
+            href="/api/admin/export/leaderboard"
+            className="rounded-full border border-black/[.12] px-3 py-1 text-sm hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+          >
+            ⬇ Leaderboard CSV
+          </a>
+          <Link
+            href="/admin/data"
+            className="rounded-full border border-black/[.12] px-3 py-1 text-sm hover:bg-black/[.04] dark:border-white/[.2] dark:hover:bg-white/[.06]"
+          >
+            Teams & players →
+          </Link>
+        </div>
       </div>
       <ConfigEditor config={config} teams={teams} />
       <section>
