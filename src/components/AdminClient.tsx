@@ -15,7 +15,7 @@ import type { Match, MatchResult, Team, TournamentConfig } from "@/lib/types";
 
 interface Props {
   matches: Match[];
-  teams: Pick<Team, "id" | "name">[];
+  teams: Pick<Team, "id" | "name" | "group_label">[];
   results: MatchResult[];
   config: TournamentConfig;
 }
@@ -36,8 +36,11 @@ function ConfigEditor({
   teams,
 }: {
   config: TournamentConfig;
-  teams: Pick<Team, "id" | "name">[];
+  teams: Pick<Team, "id" | "name" | "group_label">[];
 }) {
+  // Actual WC winner must be a 2026 qualifier — filter out clubs (PSG, Arsenal),
+  // past-tournament Hall-of-Fame teams (Italy), and friendly-only extras.
+  const wcTeams = teams.filter((t) => t.group_label != null);
   const [startsAt, setStartsAt] = useState(toLocalInput(config?.starts_at ?? null));
   const [groupEnd, setGroupEnd] = useState(toLocalInput(config?.group_stage_ends_at ?? null));
   const [winner, setWinner] = useState(config?.actual_winner_team_id ?? "");
@@ -87,7 +90,7 @@ function ConfigEditor({
           className="mt-1 block w-full rounded-lg border border-black/[.12] bg-transparent px-2 py-1 dark:border-white/[.2]"
         >
           <option value="">— not decided —</option>
-          {teams.map((t) => (
+          {wcTeams.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>

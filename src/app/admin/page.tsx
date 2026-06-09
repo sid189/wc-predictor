@@ -68,7 +68,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <AdminClient
         matches={(matches ?? []) as Match[]}
-        teams={(teams ?? []) as Pick<Team, "id" | "name">[]}
+        teams={(teams ?? []) as Pick<Team, "id" | "name" | "group_label">[]}
         results={(results ?? []) as MatchResult[]}
         config={config as TournamentConfig}
       />
