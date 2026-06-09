@@ -12,7 +12,14 @@ export default async function SpecialPage() {
 
   const [{ data: config }, { data: teams }, { data: picks }] = await Promise.all([
     supabase.from("tournament_config").select("*").eq("id", 1).single(),
-    supabase.from("teams").select("id, name").order("name"),
+    // Only 2026 WC qualifiers — they're the ones with a group letter set.
+    // Excludes club sides (PSG, Arsenal) and any extra national teams added
+    // for past Hall-of-Fame entries or friendlies (e.g. Italy, Gambia).
+    supabase
+      .from("teams")
+      .select("id, name")
+      .not("group_label", "is", null)
+      .order("name"),
     supabase.from("special_predictions").select("*").eq("user_id", user!.id),
   ]);
 
