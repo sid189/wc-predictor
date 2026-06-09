@@ -10,18 +10,35 @@ export default async function SpecialPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: config }, { data: teams }, { data: picks }] = await Promise.all([
-    supabase.from("tournament_config").select("*").eq("id", 1).single(),
-    // Only 2026 WC qualifiers — they're the ones with a group letter set.
-    // Excludes club sides (PSG, Arsenal) and any extra national teams added
-    // for past Hall-of-Fame entries or friendlies (e.g. Italy, Gambia).
-    supabase
-      .from("teams")
-      .select("id, name")
-      .not("group_label", "is", null)
-      .order("name"),
-    supabase.from("special_predictions").select("*").eq("user_id", user!.id),
-  ]);
+  const [{ data: config }, { data: teams }, { data: picks }, { data: submitters }] =
+    await Promise.all([
+      supabase.from("tournament_config").select("*").eq("id", 1).single(),
+      // Only 2026 WC qualifiers — they're the ones with a group letter set.
+      // Excludes club sides (PSG, Arsenal) and any extra national teams added
+      // for past Hall-of-Fame entries or friendlies (e.g. Italy, Gambia).
+      supabase
+        .from("teams")
+        .select("id, name")
+        .not("group_label", "is", null)
+        .order("name"),
+      supabase.from("special_predictions").select("*").eq("user_id", user!.id),
+      // RPC returns just kind + name per submitter — no team/boot values leak.
+      supabase.rpc("special_submitters"),
+    ]);
+
+  const submitterRows = (submitters ?? []) as {
+    kind: SpecialPrediction["kind"];
+    user_id: string;
+    display_name: string;
+  }[];
+  const winnerSubmitters = submitterRows
+    .filter((s) => s.kind === "winner")
+    .map((s) => s.display_name)
+    .sort();
+  const bootSubmitters = submitterRows
+    .filter((s) => s.kind === "golden_boot")
+    .map((s) => s.display_name)
+    .sort();
 
   const cfg = config as TournamentConfig | null;
   const now = Date.now();
@@ -58,6 +75,24 @@ export default async function SpecialPage() {
         initialWinner={winner?.team_id ?? ""}
         initialBoot={boot?.golden_boot_name ?? ""}
       />
+
+      <section className="rounded-xl border border-black/[.08] p-4 dark:border-white/[.145]">
+        <h2 className="text-sm font-semibold text-zinc-500">
+          Tournament Winner submitted by ({winnerSubmitters.length})
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          {winnerSubmitters.length > 0 ? winnerSubmitters.join(", ") : "—"}
+        </p>
+        <h2 className="mt-4 text-sm font-semibold text-zinc-500">
+          Golden Boot submitted by ({bootSubmitters.length})
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          {bootSubmitters.length > 0 ? bootSubmitters.join(", ") : "—"}
+        </p>
+        <p className="mt-3 text-xs text-zinc-400">
+          Actual picks stay hidden until the tournament kicks off.
+        </p>
+      </section>
     </div>
   );
 }
