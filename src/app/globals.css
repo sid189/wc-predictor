@@ -19,9 +19,12 @@ body {
   color: var(--foreground);
 }
 
-/* Native <select> dropdowns: black background, white text. */
+/* Native <select> dropdowns follow the app's light/dark theme via the same
+ * CSS variables defined on :root and overridden by the `prefers-color-scheme`
+ * media query above. <option> needs explicit styling because it doesn't
+ * inherit from its parent in most browsers. */
 select,
 option {
-  color: #fff;
-  background-color: #000;
+  color: var(--foreground);
+  background-color: var(--background);
 }

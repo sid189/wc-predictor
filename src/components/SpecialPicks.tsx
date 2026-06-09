@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { saveSpecialPick } from "@/app/actions/special";
 import type { SpecialKind } from "@/lib/types";
 
@@ -33,6 +33,9 @@ function TeamPicker({
   const [value, setValue] = useState(initial);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
+  // Sync local state when the saved value changes (e.g. after revalidation
+  // following a successful save). Otherwise the picker would stay blank.
+  useEffect(() => setValue(initial), [initial]);
 
   function save() {
     if (!value) return;
@@ -90,6 +93,7 @@ function GoldenBootPicker({
   const [value, setValue] = useState(initial);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
+  useEffect(() => setValue(initial), [initial]);
 
   function save() {
     const trimmed = value.trim();
