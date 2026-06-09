@@ -19,7 +19,6 @@ export async function Nav() {
 
   const links = [
     { href: "/matches", label: "Matches" },
-    { href: "/friendlies", label: "Friendlies" },
     { href: "/standings", label: "Standings" },
     { href: "/special", label: "Winner & Boot" },
     { href: "/leaderboard", label: "Leaderboard" },
