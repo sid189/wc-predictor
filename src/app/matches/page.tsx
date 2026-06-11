@@ -44,9 +44,11 @@ export default async function MatchesPage({
     matches = matches.filter((m) => !hasKickedOff(m.kickoff_at) && !predMap.has(m.id));
 
   // Build filter-chip hrefs that preserve the other active filter.
+  // Use `"x" in next` so explicit `undefined` clears the filter — `??` falls
+  // back to the current value and ends up rebuilding the same URL.
   const href = (next: Filters) => {
     const sp = new URLSearchParams();
-    const s = next.stage ?? stage;
+    const s = "stage" in next ? next.stage : stage;
     const st = "status" in next ? next.status : status;
     if (s) sp.set("stage", s);
     if (st) sp.set("status", st);
