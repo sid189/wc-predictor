@@ -104,10 +104,23 @@ export default async function MatchPage({
       {res && (
         <div className="rounded-xl border border-emerald-600/30 bg-emerald-600/5 p-4">
           <div className="text-xs uppercase tracking-wide text-emerald-700">Result</div>
-          <div className="font-mono text-lg">
-            {res.ft_a}–{res.ft_b}
-            {res.et_a != null && ` (ET ${res.et_a}–${res.et_b})`}
-            {res.pen_a != null && ` (pens ${res.pen_a}–${res.pen_b})`}
+          <div className="mt-1 space-y-0.5 font-mono">
+            <div className="text-lg">
+              <span className="text-xs text-zinc-500">FT</span>{" "}
+              {teamA.name} {res.ft_a} – {res.ft_b} {teamB.name}
+            </div>
+            {res.et_a != null && res.et_b != null && (
+              <div>
+                <span className="text-xs text-zinc-500">ET</span>{" "}
+                {teamA.name} {res.et_a} – {res.et_b} {teamB.name}
+              </div>
+            )}
+            {res.pen_a != null && res.pen_b != null && (
+              <div>
+                <span className="text-xs text-zinc-500">Pens</span>{" "}
+                {teamA.name} {res.pen_a} – {res.pen_b} {teamB.name}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -184,23 +197,30 @@ export default async function MatchPage({
                     : null
                 : null;
               return (
-              <li key={p.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-                <span>{p.name}</span>
-                <span className="font-mono text-right">
-                  <span>FT {p.ft_a}–{p.ft_b}</span>
+              <li key={p.id} className="space-y-1 p-3 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium">{p.name}</span>
+                  {p.scored && <span className="font-mono text-emerald-600">+{p.points}</span>}
+                </div>
+                <div className="space-y-0.5 font-mono text-zinc-600 dark:text-zinc-400">
+                  <div>
+                    <span className="text-xs text-zinc-500">FT</span>{" "}
+                    {teamA.name} {p.ft_a} – {p.ft_b} {teamB.name}
+                  </div>
                   {p.et_a != null && p.et_b != null && (
-                    <span className="ml-2 text-zinc-500">
-                      · ET {p.et_a}–{p.et_b}
-                    </span>
+                    <div>
+                      <span className="text-xs text-zinc-500">ET</span>{" "}
+                      {teamA.name} {p.et_a} – {p.et_b} {teamB.name}
+                    </div>
                   )}
                   {p.pen_a != null && p.pen_b != null && (
-                    <span className="ml-2 text-zinc-500">
-                      · Pens {p.pen_a}–{p.pen_b}
-                      {winnerName ? ` (${winnerName})` : ""}
-                    </span>
+                    <div>
+                      <span className="text-xs text-zinc-500">Pens</span>{" "}
+                      {teamA.name} {p.pen_a} – {p.pen_b} {teamB.name}
+                      {winnerName ? ` (${winnerName} win)` : ""}
+                    </div>
                   )}
-                  {p.scored && <span className="ml-2 text-emerald-600">+{p.points}</span>}
-                </span>
+                </div>
               </li>
               );
             })}
