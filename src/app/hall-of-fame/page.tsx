@@ -46,6 +46,13 @@ const WINNERS: Winner[] = [
     tournamentLogo: wiki("UEFA_Euro_2024_Logo.svg"),
     championTeam: "Spain",
   },
+  {
+    year: 2026,
+    name: "⏳",
+    tournament: "FIFA World Cup 2026",
+    tournamentLogo: "/wc2026-logo.png", // local asset, same one as the banner
+    championTeam: "⏳",
+  },
 ];
 
 export default function HallOfFamePage() {
