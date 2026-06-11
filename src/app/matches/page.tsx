@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { STAGE_LABELS, formatDate, hasKickedOff, predictionWindow } from "@/lib/format";
 import { Flag } from "@/components/Flag";
 import { LocalTime } from "@/components/LocalTime";
+import { TournamentBanner } from "@/components/TournamentBanner";
 import type { Match, Prediction, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +79,7 @@ export default async function MatchesPage({
 
   return (
     <div className="space-y-4">
+      <TournamentBanner />
       <h1 className="text-xl font-semibold">Matches</h1>
 
       <div className="flex flex-wrap gap-2">

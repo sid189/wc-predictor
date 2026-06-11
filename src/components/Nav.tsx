@@ -28,8 +28,14 @@ export async function Nav() {
   return (
     <header className="border-b border-black/[.08] dark:border-white/[.145]">
       <nav className="mx-auto flex w-full max-w-3xl items-center gap-4 px-4 py-3 text-sm">
-        <Link href="/matches" className="font-semibold tracking-tight">
-          🏆 Predictor
+        <Link href="/matches" className="flex items-center gap-2 font-semibold tracking-tight">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/predictions-logo.png"
+            alt="Predictions Tournament"
+            className="h-8 w-auto"
+          />
+          <span className="hidden sm:inline">Predictor</span>
         </Link>
         <div className="flex flex-1 items-center gap-3">
           {links.map((l) => (
