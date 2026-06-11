@@ -14,13 +14,12 @@ const KICKOFF_BUFFER_MS = 30 * 60 * 1000;
 interface FifaMatch {
   MatchNumber: number;
   Date: string;
-  HomeTeamScore: number | null;
+  HomeTeamScore: number | null; // FT (90') score
   AwayTeamScore: number | null;
-  AggregateHomeTeamScore: number | null;
+  AggregateHomeTeamScore: number | null; // FT + ET goals (knockout only)
   AggregateAwayTeamScore: number | null;
-  HomeTeamPenaltyScore: number | null;
+  HomeTeamPenaltyScore: number | null; // shootout score (knockout only)
   AwayTeamPenaltyScore: number | null;
-  MatchStatus: number | null;
 }
 
 export async function POST(request: Request) {
@@ -47,14 +46,16 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
   const [{ data: matches }, { data: existing }] = await Promise.all([
-    admin.from("matches").select("id, fifa_match_number, is_knockout"),
+    admin.from("matches").select("id, fifa_match_number, is_knockout").not("fifa_match_number", "is", null),
     admin.from("match_results").select("match_id"),
   ]);
   const ourByNum = new Map(
-    (matches ?? []).map((m: { id: string; fifa_match_number: number | null }) => [
-      m.fifa_match_number,
-      m,
-    ]),
+    (matches ?? []).map(
+      (m: { id: string; fifa_match_number: number | null; is_knockout: boolean }) => [
+        m.fifa_match_number,
+        m,
+      ],
+    ),
   );
   const alreadyEntered = new Set(
     (existing ?? []).map((r: { match_id: string }) => r.match_id),
@@ -92,22 +93,39 @@ export async function POST(request: Request) {
       continue;
     }
 
-    // Best-effort interpretation of FIFA fields:
-    //   HomeTeamScore / AwayTeamScore       = full-time score (90')
-    //   AggregateHomeTeamScore / Aggregate… = full-time + extra-time goals (knockout only)
-    //   HomeTeamPenaltyScore / Away…        = shootout score (knockout only)
+    // FT score is always populated from HomeTeamScore / AwayTeamScore (90').
+    // For knockouts we also detect ET + penalties:
+    //   ET goals  = (aggregate after ET) − (FT score) — i.e. goals scored
+    //               DURING extra time only, per our schema convention.
+    //               Example: 1-1 at FT, 2-2 at end of ET → et_a = et_b = 1.
+    //   Pens      = HomeTeamPenaltyScore / AwayTeamPenaltyScore as-is.
+    //   If pens happened but aggregate equals FT (no goals in ET),
+    //   we set et = 0-0 explicitly since the match did go through ET.
     const ft_a = f.HomeTeamScore;
     const ft_b = f.AwayTeamScore;
-    const aggA = f.AggregateHomeTeamScore ?? ft_a;
-    const aggB = f.AggregateAwayTeamScore ?? ft_b;
+
     let et_a: number | null = null;
     let et_b: number | null = null;
-    if (aggA !== ft_a || aggB !== ft_b) {
-      et_a = aggA - ft_a;
-      et_b = aggB - ft_b;
+    let pen_a: number | null = null;
+    let pen_b: number | null = null;
+
+    if (ourMatch.is_knockout) {
+      const aggA = f.AggregateHomeTeamScore;
+      const aggB = f.AggregateAwayTeamScore;
+      if (aggA != null && aggB != null && (aggA !== ft_a || aggB !== ft_b)) {
+        et_a = aggA - ft_a;
+        et_b = aggB - ft_b;
+      }
+      if (f.HomeTeamPenaltyScore != null && f.AwayTeamPenaltyScore != null) {
+        pen_a = f.HomeTeamPenaltyScore;
+        pen_b = f.AwayTeamPenaltyScore;
+        // Pens happened but ET aggregate wasn't reported (e.g. ET 0-0).
+        if (et_a == null) {
+          et_a = 0;
+          et_b = 0;
+        }
+      }
     }
-    const pen_a = f.HomeTeamPenaltyScore ?? null;
-    const pen_b = f.AwayTeamPenaltyScore ?? null;
 
     const res = await applyMatchResult(admin, {
       matchId: ourMatch.id,
