@@ -8,15 +8,16 @@ import { applyMatchResult } from "@/server/match-engine";
 const FIFA_URL =
   "https://api.fifa.com/api/v3/calendar/matches?idCompetition=17&idSeason=285023&count=200&language=en";
 
-// Wait at least 3 hours after scheduled kickoff before treating FIFA's score
-// fields as final. FIFA populates HomeTeamScore live (incrementing during the
-// match), so a smaller buffer can cause the cron to ingest a mid-match snapshot
-// — e.g. 1-0 at 60' for a game that ended 2-0. Real durations:
-//   • regulation: 90 + 15 (HT) + ~10 (stoppage) ≈ 115 min
-//   • knockout to ET: + 30 (ET) ≈ 145 min
-//   • knockout to pens: + ~10 (shootout) ≈ 155 min
-// 3 hours leaves comfortable headroom for late kickoffs / extended delays.
-const KICKOFF_BUFFER_MS = 3 * 60 * 60 * 1000;
+// Wait until FIFA's score fields are reliably "final" before applying them.
+// FIFA reports HomeTeamScore live (incrementing during the match), so the
+// cron has to outlast the match itself. Real durations:
+//   • Group / regulation knockout: 90 + 15 (HT) + ~10 (stoppage) ≈ 115 min
+//   • Knockout going to ET:        + 30 (ET) ≈ 145 min
+//   • Knockout going to pens:      + ~10 (shootout) ≈ 155 min
+// Group matches can't go to ET, so we use a tighter 2h buffer there for
+// faster pickup. Knockouts stay at 3h to cover ET + pens.
+const GROUP_BUFFER_MS = 2 * 60 * 60 * 1000;
+const KNOCKOUT_BUFFER_MS = 3 * 60 * 60 * 1000;
 
 interface FifaMatch {
   MatchNumber: number;
@@ -95,7 +96,8 @@ export async function POST(request: Request) {
       continue;
     }
     const kickoffMs = new Date(f.Date).getTime();
-    if (kickoffMs > Date.now() - KICKOFF_BUFFER_MS) {
+    const bufferMs = ourMatch.is_knockout ? KNOCKOUT_BUFFER_MS : GROUP_BUFFER_MS;
+    if (kickoffMs > Date.now() - bufferMs) {
       summary.skipped_unfinished += 1;
       continue;
     }
