@@ -8,8 +8,15 @@ import { applyMatchResult } from "@/server/match-engine";
 const FIFA_URL =
   "https://api.fifa.com/api/v3/calendar/matches?idCompetition=17&idSeason=285023&count=200&language=en";
 
-// 30-minute buffer after kickoff before we treat a match as "should be over".
-const KICKOFF_BUFFER_MS = 30 * 60 * 1000;
+// Wait at least 3 hours after scheduled kickoff before treating FIFA's score
+// fields as final. FIFA populates HomeTeamScore live (incrementing during the
+// match), so a smaller buffer can cause the cron to ingest a mid-match snapshot
+// — e.g. 1-0 at 60' for a game that ended 2-0. Real durations:
+//   • regulation: 90 + 15 (HT) + ~10 (stoppage) ≈ 115 min
+//   • knockout to ET: + 30 (ET) ≈ 145 min
+//   • knockout to pens: + ~10 (shootout) ≈ 155 min
+// 3 hours leaves comfortable headroom for late kickoffs / extended delays.
+const KICKOFF_BUFFER_MS = 3 * 60 * 60 * 1000;
 
 interface FifaMatch {
   MatchNumber: number;
