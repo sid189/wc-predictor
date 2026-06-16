@@ -55,7 +55,12 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const [{ data: matches }, { data: existing }] = await Promise.all([
     admin.from("matches").select("id, fifa_match_number, is_knockout").not("fifa_match_number", "is", null),
-    admin.from("match_results").select("match_id"),
+    // Pull existing scores + who entered so we can self-correct stale cron
+    // entries (e.g. when FIFA reports a late 90+6' goal *after* our previous
+    // run) while still leaving admin entries untouched.
+    admin
+      .from("match_results")
+      .select("match_id, ft_a, ft_b, et_a, et_b, pen_a, pen_b, entered_by"),
   ]);
   const ourByNum = new Map(
     (matches ?? []).map(
@@ -65,14 +70,26 @@ export async function POST(request: Request) {
       ],
     ),
   );
-  const alreadyEntered = new Set(
-    (existing ?? []).map((r: { match_id: string }) => r.match_id),
+  type ExistingRow = {
+    match_id: string;
+    ft_a: number;
+    ft_b: number;
+    et_a: number | null;
+    et_b: number | null;
+    pen_a: number | null;
+    pen_b: number | null;
+    entered_by: string | null;
+  };
+  const existingMap = new Map<string, ExistingRow>(
+    ((existing ?? []) as ExistingRow[]).map((r) => [r.match_id, r]),
   );
 
   const summary = {
     fifa_matches: fifa.length,
     applied: 0,
-    skipped_existing: 0,
+    updated: 0,
+    skipped_admin: 0,
+    skipped_unchanged: 0,
     skipped_unfinished: 0,
     errors: [] as { match: number; error: string }[],
   };
@@ -82,9 +99,10 @@ export async function POST(request: Request) {
     const ourMatch = ourByNum.get(num);
     if (!ourMatch) continue;
 
-    // Never overwrite an admin-entered result — the manual entry wins.
-    if (alreadyEntered.has(ourMatch.id)) {
-      summary.skipped_existing += 1;
+    // Admin entries are the source of truth — never overwritten.
+    const prev = existingMap.get(ourMatch.id);
+    if (prev && prev.entered_by !== null) {
+      summary.skipped_admin += 1;
       continue;
     }
 
@@ -136,6 +154,21 @@ export async function POST(request: Request) {
       }
     }
 
+    // If this match already has a cron-applied result with identical scores,
+    // skip — FIFA's payload hasn't changed since last run.
+    if (
+      prev &&
+      prev.ft_a === ft_a &&
+      prev.ft_b === ft_b &&
+      prev.et_a === et_a &&
+      prev.et_b === et_b &&
+      prev.pen_a === pen_a &&
+      prev.pen_b === pen_b
+    ) {
+      summary.skipped_unchanged += 1;
+      continue;
+    }
+
     const res = await applyMatchResult(admin, {
       matchId: ourMatch.id,
       ft_a,
@@ -146,8 +179,12 @@ export async function POST(request: Request) {
       pen_b,
       // winner_team_id is derived inside applyMatchResult for knockouts.
     });
-    if (res.ok) summary.applied += 1;
-    else summary.errors.push({ match: num, error: res.error });
+    if (res.ok) {
+      if (prev) summary.updated += 1;
+      else summary.applied += 1;
+    } else {
+      summary.errors.push({ match: num, error: res.error });
+    }
   }
 
   return NextResponse.json(summary);
