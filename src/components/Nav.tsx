@@ -20,6 +20,7 @@ export async function Nav() {
   const links = [
     { href: "/matches", label: "Matches" },
     { href: "/standings", label: "Standings" },
+    { href: "/stats", label: "Stats" },
     { href: "/special", label: "Winner & Boot" },
     { href: "/leaderboard", label: "Leaderboard" },
     { href: "/hall-of-fame", label: "Hall of Fame" },
