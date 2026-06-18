@@ -28,17 +28,22 @@ export async function Nav() {
 
   return (
     <header className="border-b border-black/[.08] dark:border-white/[.145]">
-      <nav className="mx-auto flex w-full max-w-3xl items-center gap-4 px-4 py-3 text-sm">
-        <Link href="/matches?day=today" className="flex items-center gap-2 font-semibold tracking-tight">
+      <nav className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3 text-sm">
+        <Link
+          href="/matches?day=today"
+          className="flex shrink-0 items-center gap-2 font-semibold tracking-tight"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/predictions-logo.png"
             alt="Predictions Tournament"
             className="h-8 w-auto"
           />
-          <span className="hidden sm:inline">Predictor</span>
+          <span className="hidden lg:inline">Predictor</span>
         </Link>
-        <div className="flex flex-1 items-center gap-3">
+        {/* min-w-0 + overflow-x-auto lets the link strip scroll horizontally on
+            narrow viewports instead of wrapping the labels onto two lines. */}
+        <div className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto whitespace-nowrap">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className="text-zinc-500 hover:text-foreground">
               {l.label}
@@ -50,9 +55,11 @@ export async function Nav() {
             </Link>
           )}
         </div>
-        <span className="hidden text-zinc-500 sm:inline">{profile?.display_name}</span>
-        <form action="/auth/signout" method="post">
-          <button className="rounded-full border border-black/[.08] px-3 py-1 hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-white/[.06]">
+        <span className="hidden max-w-[14ch] shrink-0 truncate text-zinc-500 md:inline">
+          {profile?.display_name}
+        </span>
+        <form action="/auth/signout" method="post" className="shrink-0">
+          <button className="whitespace-nowrap rounded-full border border-black/[.08] px-3 py-1 hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-white/[.06]">
             Sign out
           </button>
         </form>
