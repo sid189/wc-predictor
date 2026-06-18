@@ -18,8 +18,7 @@ export async function Nav() {
   if (!profile) return null;
 
   const links = [
-    { href: "/today", label: "Today" },
-    { href: "/matches", label: "Matches" },
+    { href: "/matches?day=today", label: "Matches" },
     { href: "/standings", label: "Standings" },
     { href: "/stats", label: "Stats" },
     { href: "/special", label: "Winner & Boot" },
@@ -30,7 +29,7 @@ export async function Nav() {
   return (
     <header className="border-b border-black/[.08] dark:border-white/[.145]">
       <nav className="mx-auto flex w-full max-w-3xl items-center gap-4 px-4 py-3 text-sm">
-        <Link href="/today" className="flex items-center gap-2 font-semibold tracking-tight">
+        <Link href="/matches?day=today" className="flex items-center gap-2 font-semibold tracking-tight">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/predictions-logo.png"

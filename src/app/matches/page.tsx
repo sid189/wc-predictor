@@ -7,14 +7,23 @@ import type { Match, Prediction, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-type Filters = { stage?: string; status?: string };
+type Filters = { stage?: string; status?: string; day?: string };
+
+// "Today" is anchored to Pacific time so the slate is deterministic no matter
+// where Vercel runs this. en-CA gives YYYY-MM-DD for clean equality checks.
+const PT_DAY_FMT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Los_Angeles",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 export default async function MatchesPage({
   searchParams,
 }: {
   searchParams: Promise<Filters>;
 }) {
-  const { stage, status } = await searchParams;
+  const { stage, status, day } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -31,6 +40,10 @@ export default async function MatchesPage({
 
   // Apply filters.
   let matches = (allMatches ?? []) as Match[];
+  if (day === "today") {
+    const todayPT = PT_DAY_FMT.format(new Date());
+    matches = matches.filter((m) => PT_DAY_FMT.format(new Date(m.kickoff_at)) === todayPT);
+  }
   if (stage === "group") matches = matches.filter((m) => !m.is_knockout);
   else if (stage === "knockout") matches = matches.filter((m) => m.is_knockout);
   // "Open" filter now means the 48h prediction window is actually open right now.
@@ -46,8 +59,10 @@ export default async function MatchesPage({
     const sp = new URLSearchParams();
     const s = "stage" in next ? next.stage : stage;
     const st = "status" in next ? next.status : status;
+    const d = "day" in next ? next.day : day;
     if (s) sp.set("stage", s);
     if (st) sp.set("status", st);
+    if (d) sp.set("day", d);
     const qs = sp.toString();
     return qs ? `/matches?${qs}` : "/matches";
   };
@@ -72,9 +87,10 @@ export default async function MatchesPage({
       <h1 className="text-xl font-semibold">Matches</h1>
 
       <div className="flex flex-wrap gap-2">
-        {chip("All", !stage, href({ stage: undefined }))}
-        {chip("Group", stage === "group", href({ stage: "group" }))}
-        {chip("Knockout", stage === "knockout", href({ stage: "knockout" }))}
+        {chip("Today", day === "today", href({ day: "today", stage: undefined }))}
+        {chip("All", !stage && day !== "today", href({ stage: undefined, day: undefined }))}
+        {chip("Group", stage === "group", href({ stage: "group", day: undefined }))}
+        {chip("Knockout", stage === "knockout", href({ stage: "knockout", day: undefined }))}
         <span className="w-px self-stretch bg-black/[.1] dark:bg-white/[.15]" />
         {chip("Any time", !status, href({ status: undefined }))}
         {chip("Open", status === "open", href({ status: "open" }))}
