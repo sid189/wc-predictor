@@ -8,12 +8,12 @@ import type { Profile } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 const FORM_COLORS: Record<number, string> = {
-  0: "#9CA3AF",
-  1: "#EF4444",
-  2: "#EAB308",
-  3: "#22C55E",
-  4: "#C0C0C0",
-  5: "#FFD700",
+  0: "#EF4444", // red
+  1: "#EAB308", // yellow
+  2: "#D946EF", // magenta
+  3: "#22C55E", // green
+  4: "#06B6D4", // cyan
+  5: "#FFD700", // gold
 };
 
 function formColor(pts: number): string {
@@ -21,11 +21,11 @@ function formColor(pts: number): string {
 }
 
 const LEGEND = [
-  { label: "0 pts", color: "#9CA3AF" },
-  { label: "1 pt",  color: "#EF4444" },
-  { label: "2 pts", color: "#EAB308" },
+  { label: "0 pts", color: "#EF4444" },
+  { label: "1 pt",  color: "#EAB308" },
+  { label: "2 pts", color: "#D946EF" },
   { label: "3 pts", color: "#22C55E" },
-  { label: "4 pts", color: "#C0C0C0" },
+  { label: "4 pts", color: "#06B6D4" },
   { label: "5 pts", color: "#FFD700" },
 ];
 
@@ -167,17 +167,20 @@ export default async function LeaderboardPage({
     ...rows.map((r) => cumulByPlayer.get(r.id)?.at(-1) ?? 0),
   );
 
+  // Prepend a "before any games" origin so lines start from 0 / rank-1 and
+  // progress continuously rightward as points are earned.
   const pointLines: ProgLine[] = rows.map((r, i) => ({
     id:     r.id,
     name:   r.name,
     color:  chartColor(i),
-    values: cumulByPlayer.get(r.id) ?? [],
+    values: N > 0 ? [0, ...(cumulByPlayer.get(r.id) ?? [])] : [],
   }));
   const rankLines: ProgLine[] = rows.map((r, i) => ({
     id:     r.id,
     name:   r.name,
     color:  chartColor(i),
-    values: rankByPlayer.get(r.id) ?? [],
+    // Everyone is tied at rank 1 before any games are scored.
+    values: N > 0 ? [1, ...(rankByPlayer.get(r.id) ?? [])] : [],
   }));
 
   // ── Tab navigation ────────────────────────────────────────────────────────
@@ -203,7 +206,7 @@ export default async function LeaderboardPage({
 
       {isProgression ? (
         <ProgressionCharts
-          matchCount={N}
+          matchCount={N > 0 ? N + 1 : 0}
           maxPoints={maxPoints}
           numPlayers={numPlayers}
           pointLines={pointLines}
