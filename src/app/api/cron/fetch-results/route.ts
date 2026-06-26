@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { applyMatchResult } from "@/server/match-engine";
+import { applyMatchResult, fillPlaceholder, loadAllGroupStandings } from "@/server/match-engine";
+import { rankThirdPlaced } from "@/lib/standings";
+import { assignThirdPlaceSlots, THIRD_PLACE_SLOTS } from "@/lib/thirdplace";
 
 // FIFA's public JSON API for the WC 2026 season (idSeason 285023 corresponds
 // to "FIFA World Cup 2026™" on idCompetition 17). This is the same endpoint
@@ -92,6 +94,8 @@ export async function POST(request: Request) {
     skipped_unchanged: 0,
     skipped_unfinished: 0,
     errors: [] as { match: number; error: string }[],
+    third_place_auto_assigned: false,
+    third_place_skipped: null as string | null,
   };
 
   for (const f of fifa) {
@@ -185,6 +189,68 @@ export async function POST(request: Request) {
     } else {
       summary.errors.push({ match: num, error: res.error });
     }
+  }
+
+  // ── Auto-assign third-place slots ────────────────────────────────────────
+  // Runs once all 12 groups are complete. Backs off entirely if the admin has
+  // already touched any slot manually — they get the last word.
+  try {
+    const groupData = await loadAllGroupStandings(admin);
+    if (groupData.length === 12 && groupData.every((g) => g.complete)) {
+      // Check the current state of the 8 third-place placeholder matches.
+      type ThirdMatch = {
+        placeholder_a: string | null;
+        placeholder_b: string | null;
+        team_a_id: string | null;
+        team_b_id: string | null;
+      };
+      const { data: thirdMatches } = await admin
+        .from("matches")
+        .select("placeholder_a, placeholder_b, team_a_id, team_b_id")
+        .or("placeholder_a.like.3%,placeholder_b.like.3%");
+
+      // If ANY third-place slot is already filled, the admin has acted — skip.
+      const anyFilled = ((thirdMatches ?? []) as ThirdMatch[]).some(
+        (m) =>
+          (m.placeholder_a?.startsWith("3") && m.team_a_id != null) ||
+          (m.placeholder_b?.startsWith("3") && m.team_b_id != null),
+      );
+
+      if (anyFilled) {
+        summary.third_place_skipped = "already_filled";
+      } else {
+        const thirds = rankThirdPlaced(groupData);
+        const best8 = thirds.slice(0, 8);
+
+        // If the 8th/9th thirds are statistically identical, bail — admin must
+        // resolve the tie manually via the ThirdPlaceAssigner in /admin.
+        if (
+          thirds.length > 8 &&
+          thirds[7].row.points === thirds[8].row.points &&
+          thirds[7].row.gd === thirds[8].row.gd &&
+          thirds[7].row.gf === thirds[8].row.gf
+        ) {
+          summary.third_place_skipped = "cut_ambiguous";
+        } else {
+          const result = assignThirdPlaceSlots(best8.map((b) => b.group));
+          if (!result.ok) {
+            summary.third_place_skipped = "no_valid_assignment";
+          } else {
+            const thirdTeamOfGroup = new Map(best8.map((t) => [t.group, t.row.teamId]));
+            for (const slot of THIRD_PLACE_SLOTS) {
+              const group = result.assignment[slot.token];
+              if (group) {
+                await fillPlaceholder(admin, slot.token, thirdTeamOfGroup.get(group) ?? null);
+              }
+            }
+            summary.third_place_auto_assigned = true;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Non-fatal — admin can assign manually via /admin.
+    summary.third_place_skipped = `error: ${(e as Error).message}`;
   }
 
   return NextResponse.json(summary);

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { rankThirdPlaced } from "@/lib/standings";
-import { THIRD_PLACE_SLOTS } from "@/lib/thirdplace";
+import { assignThirdPlaceSlots, THIRD_PLACE_SLOTS } from "@/lib/thirdplace";
 import {
   GROUP_LABELS,
   advanceBracket,
@@ -134,6 +134,65 @@ export async function recalcEverything(): Promise<ActionResult & { matches: numb
   revalidatePath("/leaderboard");
   revalidatePath("/standings");
   return { ok: true, matches: scored };
+}
+
+/**
+ * Admin: manually trigger the same third-place auto-assignment the cron runs.
+ * Works as soon as 8+ groups are complete; does NOT require all 12 to be done.
+ * Always overwrites whatever is currently in the DB (unlike the cron, which
+ * backs off when slots are already filled).
+ */
+export async function triggerThirdPlaceAssignment(): Promise<
+  ActionResult & { assigned?: Record<string, string> }
+> {
+  try {
+    await getAdminId();
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+  const admin = createAdminClient();
+
+  const groupData = await loadAllGroupStandings(admin);
+  const completedCount = groupData.filter((g) => g.complete).length;
+  if (completedCount < 8) {
+    return {
+      ok: false,
+      error: `Only ${completedCount} of 12 groups are complete — need at least 8 to rank the best thirds.`,
+    };
+  }
+
+  const thirds = rankThirdPlaced(groupData);
+  const best8 = thirds.slice(0, 8);
+
+  if (
+    thirds.length > 8 &&
+    thirds[7].row.points === thirds[8].row.points &&
+    thirds[7].row.gd === thirds[8].row.gd &&
+    thirds[7].row.gf === thirds[8].row.gf
+  ) {
+    return { ok: false, error: "8th/9th third-place teams are level on all criteria — resolve the tie manually." };
+  }
+
+  const result = assignThirdPlaceSlots(best8.map((b) => b.group));
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.ambiguous
+        ? "Multiple valid slot assignments exist — use the manual dropdowns to pick one."
+        : "No valid assignment found.",
+    };
+  }
+
+  const thirdTeamOfGroup = new Map(best8.map((t) => [t.group, t.row.teamId]));
+  for (const slot of THIRD_PLACE_SLOTS) {
+    const group = result.assignment[slot.token];
+    if (group) await fillPlaceholder(admin, slot.token, thirdTeamOfGroup.get(group) ?? null);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/matches");
+  revalidatePath("/standings");
+  return { ok: true, assigned: result.assignment };
 }
 
 /**

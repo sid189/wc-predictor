@@ -28,12 +28,16 @@ export default async function AdminPage() {
     .single();
   if (!profile?.is_admin) redirect("/matches");
 
-  const [{ data: matches }, { data: teams }, { data: results }, { data: config }] =
+  const [{ data: matches }, { data: teams }, { data: results }, { data: config }, { data: thirdMatches }] =
     await Promise.all([
       supabase.from("matches").select("*").order("kickoff_at"),
       supabase.from("teams").select("id, name, group_label").order("name"),
       supabase.from("match_results").select("*"),
       supabase.from("tournament_config").select("*").eq("id", 1).single(),
+      supabase
+        .from("matches")
+        .select("placeholder_a, placeholder_b, team_a_id, team_b_id")
+        .or("placeholder_a.like.3%,placeholder_b.like.3%"),
     ]);
 
   const teamName = new Map((teams ?? []).map((t) => [t.id, t.name]));
@@ -64,6 +68,39 @@ export default async function AdminPage() {
     ? assignThirdPlaceSlots(best8.map((b) => b.group)).assignment
     : {};
 
+  type TM = {
+    placeholder_a: string | null; placeholder_b: string | null;
+    team_a_id: string | null; team_b_id: string | null;
+  };
+  const thirdPlaceAutoAssigned = ((thirdMatches ?? []) as TM[]).some(
+    (m) =>
+      (m.placeholder_a?.startsWith("3") && m.team_a_id != null) ||
+      (m.placeholder_b?.startsWith("3") && m.team_b_id != null),
+  );
+
+  // Build a fixture table for each of the 8 third-place R32 slots.
+  const thirdFixtures = ((matches ?? []) as Match[])
+    .filter(
+      (m) =>
+        m.stage === "round_of_32" &&
+        (m.placeholder_a?.startsWith("3") || m.placeholder_b?.startsWith("3")),
+    )
+    .map((m) => {
+      const thirdIsA = !!m.placeholder_a?.startsWith("3");
+      const token        = thirdIsA ? m.placeholder_a! : m.placeholder_b!;
+      const assignedId   = thirdIsA ? m.team_a_id : m.team_b_id;
+      const opponentId   = thirdIsA ? m.team_b_id : m.team_a_id;
+      const opponentSlot = thirdIsA ? (m.placeholder_b ?? "?") : (m.placeholder_a ?? "?");
+      return {
+        token,
+        kickoff_at: m.kickoff_at,
+        city: m.city,
+        opponent: opponentId ? (teamName.get(opponentId) ?? opponentSlot) : opponentSlot,
+        assignedTeam: assignedId ? (teamName.get(assignedId) ?? null) : null,
+      };
+    })
+    .sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+
   return (
     <div className="space-y-8">
       <AdminClient
@@ -74,7 +111,13 @@ export default async function AdminPage() {
       />
       <section>
         <h2 className="mb-2 font-semibold">Third-place slots (Round of 32)</h2>
-        <ThirdPlaceAssigner ready={allGroupsComplete} best8={best8} initial={suggestion} />
+        <ThirdPlaceAssigner
+          ready={allGroupsComplete}
+          best8={best8}
+          initial={suggestion}
+          autoAssigned={thirdPlaceAutoAssigned}
+          fixtures={thirdFixtures}
+        />
       </section>
     </div>
   );
