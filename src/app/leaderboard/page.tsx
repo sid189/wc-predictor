@@ -257,15 +257,16 @@ export default async function LeaderboardPage({
                           pts == null ? (
                             <span
                               key={i}
-                              className="inline-block h-4 w-4 rounded-sm bg-zinc-200 dark:bg-zinc-700"
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-zinc-200 dark:bg-zinc-700"
                             />
                           ) : (
                             <span
                               key={i}
                               style={{ backgroundColor: formColor(pts) }}
-                              className="inline-block h-4 w-4 rounded-sm"
-                              title={`${pts} pts`}
-                            />
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-sm text-[10px] font-bold leading-none text-white"
+                            >
+                              {pts}
+                            </span>
                           )
                         )}
                       </div>
@@ -282,9 +283,14 @@ export default async function LeaderboardPage({
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
             <span className="font-medium">Recent Form:</span>
-            {LEGEND.map(({ label, color }) => (
+            {LEGEND.map(({ label, color }, pts) => (
               <span key={label} className="flex items-center gap-1">
-                <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
+                <span
+                  className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-[9px] font-bold text-white"
+                  style={{ backgroundColor: color }}
+                >
+                  {pts}
+                </span>
                 {label}
               </span>
             ))}
