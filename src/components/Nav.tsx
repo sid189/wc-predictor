@@ -23,6 +23,7 @@ export async function Nav() {
     { href: "/stats", label: "Stats" },
     { href: "/special", label: "Winner & Boot" },
     { href: "/leaderboard", label: "Leaderboard" },
+    { href: "/bracket", label: "Bracket" },
     { href: "/hall-of-fame", label: "Hall of Fame" },
   ];
 
