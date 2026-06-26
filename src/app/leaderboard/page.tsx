@@ -1,16 +1,19 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isExactFullTime } from "@/lib/scoring";
+import { ProgressionCharts } from "@/components/ProgressionCharts";
+import type { ProgLine } from "@/components/ProgressionCharts";
 import type { Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 const FORM_COLORS: Record<number, string> = {
-  0: "#9CA3AF", // gray
-  1: "#EF4444", // red
-  2: "#EAB308", // yellow
-  3: "#22C55E", // green
-  4: "#C0C0C0", // silver
-  5: "#FFD700", // gold
+  0: "#9CA3AF",
+  1: "#EF4444",
+  2: "#EAB308",
+  3: "#22C55E",
+  4: "#C0C0C0",
+  5: "#FFD700",
 };
 
 function formColor(pts: number): string {
@@ -19,14 +22,29 @@ function formColor(pts: number): string {
 
 const LEGEND = [
   { label: "0 pts", color: "#9CA3AF" },
-  { label: "1 pt", color: "#EF4444" },
+  { label: "1 pt",  color: "#EF4444" },
   { label: "2 pts", color: "#EAB308" },
   { label: "3 pts", color: "#22C55E" },
   { label: "4 pts", color: "#C0C0C0" },
   { label: "5 pts", color: "#FFD700" },
 ];
 
-export default async function LeaderboardPage() {
+// Distinct line colours for the progression charts (cycles if > 12 players).
+const CHART_COLORS = [
+  "#EF4444", "#3B82F6", "#22C55E", "#F59E0B",
+  "#8B5CF6", "#EC4899", "#14B8A6", "#F97316",
+  "#06B6D4", "#84CC16", "#A855F7", "#6366F1",
+];
+const chartColor = (i: number) => CHART_COLORS[i % CHART_COLORS.length];
+
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const isProgression = tab === "progression";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -44,16 +62,21 @@ export default async function LeaderboardPage() {
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
   const kickoffMap = new Map((matches ?? []).map((m) => [m.id, m.kickoff_at]));
 
+  // ── Leaderboard totals ────────────────────────────────────────────────────
+
   const stats = new Map<string, { match: number; special: number; exact: number }>();
   const bump = (uid: string, patch: Partial<{ match: number; special: number; exact: number }>) => {
     const s = stats.get(uid) ?? { match: 0, special: 0, exact: 0 };
-    if (patch.match) s.match += patch.match;
+    if (patch.match)   s.match   += patch.match;
     if (patch.special) s.special += patch.special;
-    if (patch.exact) s.exact += patch.exact;
+    if (patch.exact)   s.exact   += patch.exact;
     stats.set(uid, s);
   };
 
   const formPreds = new Map<string, { kickoff_at: string; points: number }[]>();
+
+  // Index scored predictions per player + match for progression computation.
+  const playerMatchPts = new Map<string, Map<string, number>>();
 
   (preds ?? []).forEach((p) => {
     bump(p.user_id, { match: p.points ?? 0 });
@@ -66,11 +89,14 @@ export default async function LeaderboardPage() {
         arr.push({ kickoff_at: kickoff, points: p.points ?? 0 });
         formPreds.set(p.user_id, arr);
       }
+      let m = playerMatchPts.get(p.user_id);
+      if (!m) { m = new Map(); playerMatchPts.set(p.user_id, m); }
+      m.set(p.match_id, p.points ?? 0);
     }
   });
   (specials ?? []).forEach((s) => bump(s.user_id, { special: s.points ?? 0 }));
 
-  // Last 5 scored matches in chronological order (oldest → newest = left → right).
+  // Last 5 scored matches per player, oldest → newest.
   const formMap = new Map<string, number[]>();
   for (const [uid, arr] of formPreds) {
     const sorted = arr.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
@@ -87,10 +113,7 @@ export default async function LeaderboardPage() {
   let rank = 0;
   let prevTotal: number | null = null;
   const ranked = rows.map((r, i) => {
-    if (r.total !== prevTotal) {
-      rank = i + 1;
-      prevTotal = r.total;
-    }
+    if (r.total !== prevTotal) { rank = i + 1; prevTotal = r.total; }
     return { ...r, rank };
   });
 
@@ -98,88 +121,173 @@ export default async function LeaderboardPage() {
     return <div className="py-12 text-center text-zinc-500">No players yet.</div>;
   }
 
+  // ── Progression data ──────────────────────────────────────────────────────
+
+  // Scored match slots in chronological order.
+  const scoredMatchSet = new Set<string>();
+  (preds ?? []).forEach((p) => { if (p.scored) scoredMatchSet.add(p.match_id); });
+  const matchSlots = [...kickoffMap.entries()]
+    .filter(([id]) => scoredMatchSet.has(id))
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([id]) => id);
+
+  const N = matchSlots.length;
+  const numPlayers = rows.length;
+
+  // Cumulative points + rank at each slot, per player.
+  const cumulByPlayer = new Map<string, number[]>();
+  const rankByPlayer  = new Map<string, number[]>();
+  const running       = new Map<string, number>();
+  for (const r of rows) {
+    cumulByPlayer.set(r.id, []);
+    rankByPlayer.set(r.id, []);
+    running.set(r.id, 0);
+  }
+
+  for (const matchId of matchSlots) {
+    for (const r of rows) {
+      const pts = playerMatchPts.get(r.id)?.get(matchId) ?? 0;
+      const next = (running.get(r.id) ?? 0) + pts;
+      running.set(r.id, next);
+      cumulByPlayer.get(r.id)!.push(next);
+    }
+    // Rank at this point (ties share rank).
+    const sorted = rows
+      .map((r) => ({ id: r.id, pts: running.get(r.id) ?? 0 }))
+      .sort((a, b) => b.pts - a.pts);
+    let cur = 1, prevPts = -Infinity;
+    sorted.forEach(({ id, pts }, idx) => {
+      if (pts !== prevPts) { cur = idx + 1; prevPts = pts; }
+      rankByPlayer.get(id)!.push(cur);
+    });
+  }
+
+  const maxPoints = Math.max(
+    1,
+    ...rows.map((r) => cumulByPlayer.get(r.id)?.at(-1) ?? 0),
+  );
+
+  const pointLines: ProgLine[] = rows.map((r, i) => ({
+    id:     r.id,
+    name:   r.name,
+    color:  chartColor(i),
+    values: cumulByPlayer.get(r.id) ?? [],
+  }));
+  const rankLines: ProgLine[] = rows.map((r, i) => ({
+    id:     r.id,
+    name:   r.name,
+    color:  chartColor(i),
+    values: rankByPlayer.get(r.id) ?? [],
+  }));
+
+  // ── Tab navigation ────────────────────────────────────────────────────────
+
+  const tabCls = (active: boolean) =>
+    active
+      ? "border-b-2 border-foreground pb-2 text-sm font-semibold"
+      : "pb-2 text-sm text-zinc-500 hover:text-foreground";
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Leaderboard</h1>
-      <table className="w-full text-sm">
-        <thead className="text-left text-zinc-500">
-          <tr className="border-b border-black/[.08] dark:border-white/[.145]">
-            <th className="py-2">#</th>
-            <th>Player</th>
-            <th className="text-right">Matches</th>
-            <th className="text-right">Specials</th>
-            <th className="text-right">Exact</th>
-            <th className="text-right">Total</th>
-            <th className="py-2 text-right">Recent Form</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranked.map((r) => {
-            const form = formMap.get(r.id) ?? [];
-            // Left-pad with null so players with fewer than 5 games still fill 5 slots.
-            const padded: (number | null)[] = Array.from({ length: 5 }, (_, i) => {
-              const offset = i - (5 - form.length);
-              return offset >= 0 ? form[offset] : null;
-            });
-            return (
-              <tr
-                key={r.id}
-                className={`border-b border-black/[.05] dark:border-white/[.08] ${
-                  r.id === user?.id ? "bg-foreground/[.04] font-medium" : ""
-                }`}
-              >
-                <td className="py-2 text-zinc-400">{r.rank}</td>
-                <td className="font-medium">
-                  {r.name}
-                  {r.id === user?.id && <span className="ml-2 text-xs text-zinc-400">you</span>}
-                </td>
-                <td className="text-right font-mono">{r.match}</td>
-                <td className="text-right font-mono">{r.special}</td>
-                <td className="text-right font-mono text-zinc-500">{r.exact}</td>
-                <td className="text-right font-mono font-semibold">{r.total}</td>
-                <td className="py-2 text-right">
-                  <div className="flex justify-end gap-1">
-                    {padded.map((pts, i) =>
-                      pts == null ? (
-                        <span
-                          key={i}
-                          className="inline-block h-4 w-4 rounded-sm bg-zinc-200 dark:bg-zinc-700"
-                        />
-                      ) : (
-                        <span
-                          key={i}
-                          style={{ backgroundColor: formColor(pts) }}
-                          className="inline-block h-4 w-4 rounded-sm"
-                          title={`${pts} pts`}
-                        />
-                      )
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
 
-      <p className="text-xs text-zinc-400">
-        Ties share a rank and are ordered by most exact full-time scores.
-      </p>
-
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
-        <span className="font-medium">Recent Form:</span>
-        {LEGEND.map(({ label, color }) => (
-          <span key={label} className="flex items-center gap-1">
-            <span
-              className="inline-block h-3 w-3 rounded-sm"
-              style={{ backgroundColor: color }}
-            />
-            {label}
-          </span>
-        ))}
+      {/* Tabs */}
+      <div className="flex gap-6 border-b border-black/[.08] dark:border-white/[.145]">
+        <Link href="/leaderboard" className={tabCls(!isProgression)}>
+          Leaderboard
+        </Link>
+        <Link href="/leaderboard?tab=progression" className={tabCls(isProgression)}>
+          Progression
+        </Link>
       </div>
 
+      {isProgression ? (
+        <ProgressionCharts
+          matchCount={N}
+          maxPoints={maxPoints}
+          numPlayers={numPlayers}
+          pointLines={pointLines}
+          rankLines={rankLines}
+        />
+      ) : (
+        <>
+          <table className="w-full text-sm">
+            <thead className="text-left text-zinc-500">
+              <tr className="border-b border-black/[.08] dark:border-white/[.145]">
+                <th className="py-2">#</th>
+                <th>Player</th>
+                <th className="text-right">Matches</th>
+                <th className="text-right">Specials</th>
+                <th className="text-right">Exact</th>
+                <th className="text-right">Total</th>
+                <th className="py-2 text-right">Recent Form</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranked.map((r) => {
+                const form = formMap.get(r.id) ?? [];
+                const padded: (number | null)[] = Array.from({ length: 5 }, (_, i) => {
+                  const offset = i - (5 - form.length);
+                  return offset >= 0 ? form[offset] : null;
+                });
+                return (
+                  <tr
+                    key={r.id}
+                    className={`border-b border-black/[.05] dark:border-white/[.08] ${
+                      r.id === user?.id ? "bg-foreground/[.04] font-medium" : ""
+                    }`}
+                  >
+                    <td className="py-2 text-zinc-400">{r.rank}</td>
+                    <td className="font-medium">
+                      {r.name}
+                      {r.id === user?.id && (
+                        <span className="ml-2 text-xs text-zinc-400">you</span>
+                      )}
+                    </td>
+                    <td className="text-right font-mono">{r.match}</td>
+                    <td className="text-right font-mono">{r.special}</td>
+                    <td className="text-right font-mono text-zinc-500">{r.exact}</td>
+                    <td className="text-right font-mono font-semibold">{r.total}</td>
+                    <td className="py-2 text-right">
+                      <div className="flex justify-end gap-1">
+                        {padded.map((pts, i) =>
+                          pts == null ? (
+                            <span
+                              key={i}
+                              className="inline-block h-4 w-4 rounded-sm bg-zinc-200 dark:bg-zinc-700"
+                            />
+                          ) : (
+                            <span
+                              key={i}
+                              style={{ backgroundColor: formColor(pts) }}
+                              className="inline-block h-4 w-4 rounded-sm"
+                              title={`${pts} pts`}
+                            />
+                          )
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <p className="text-xs text-zinc-400">
+            Ties share a rank and are ordered by most exact full-time scores.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+            <span className="font-medium">Recent Form:</span>
+            {LEGEND.map(({ label, color }) => (
+              <span key={label} className="flex items-center gap-1">
+                <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: color }} />
+                {label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
