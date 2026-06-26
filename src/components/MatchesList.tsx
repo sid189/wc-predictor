@@ -11,6 +11,8 @@ interface Props {
   matches: Match[];
   predictions: Pick<Prediction, "match_id" | "ft_a" | "ft_b" | "points" | "scored">[];
   teams: Pick<Team, "id" | "name">[];
+  /** Active list filter, forwarded to each match link so it survives the round-trip. */
+  query?: string;
 }
 
 interface DateGroup {
@@ -39,7 +41,8 @@ function groupByDate(matches: Match[], timeZone?: string): DateGroup[] {
 
 /** Groups matches by date and renders the list. Initial paint uses UTC so SSR
  *  hydrates cleanly; after mount we re-group by the browser's local timezone. */
-export function MatchesList({ matches, predictions, teams }: Props) {
+export function MatchesList({ matches, predictions, teams, query }: Props) {
+  const qs = query ? `?${query}` : "";
   // First paint (server + client first render): UTC. Avoids hydration mismatch.
   const [groups, setGroups] = useState<DateGroup[]>(() => groupByDate(matches, "UTC"));
 
@@ -73,7 +76,7 @@ export function MatchesList({ matches, predictions, teams }: Props) {
               return (
                 <li key={m.id}>
                   <Link
-                    href={`/matches/${m.id}`}
+                    href={`/matches/${m.id}${qs}`}
                     className="flex items-center gap-3 rounded-xl border border-black/[.08] p-3 transition-colors hover:bg-black/[.03] dark:border-white/[.145] dark:hover:bg-white/[.05]"
                   >
                     <div className="flex-1">

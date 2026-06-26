@@ -67,6 +67,14 @@ export default async function MatchesPage({
     return qs ? `/matches?${qs}` : "/matches";
   };
 
+  // Carry the active filter into each match link so returning to the list
+  // (back link or browser back) keeps the same filter selected.
+  const listParams = new URLSearchParams();
+  if (stage) listParams.set("stage", stage);
+  if (status) listParams.set("status", status);
+  if (day) listParams.set("day", day);
+  const listQuery = listParams.toString();
+
   const chip = (label: string, active: boolean, to: string) => (
     <Link
       key={label}
@@ -101,6 +109,7 @@ export default async function MatchesPage({
         matches={matches}
         teams={(teams ?? []) as Pick<Team, "id" | "name">[]}
         predictions={(myPreds ?? []) as Pick<Prediction, "match_id" | "ft_a" | "ft_b" | "points" | "scored">[]}
+        query={listQuery}
       />
     </div>
   );

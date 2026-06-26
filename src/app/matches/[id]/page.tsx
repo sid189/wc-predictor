@@ -11,10 +11,22 @@ export const dynamic = "force-dynamic";
 
 export default async function MatchPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ stage?: string; status?: string; day?: string }>;
 }) {
   const { id } = await params;
+  const { stage, status, day } = await searchParams;
+
+  // Preserve the list filter the user came in with, so the back link returns
+  // them to the same filtered view (e.g. the "Open" chip stays selected).
+  const backParams = new URLSearchParams();
+  if (stage) backParams.set("stage", stage);
+  if (status) backParams.set("status", status);
+  if (day) backParams.set("day", day);
+  const backQs = backParams.toString();
+  const backHref = backQs ? `/matches?${backQs}` : "/matches";
   const supabase = await createClient();
   const {
     data: { user },
@@ -78,7 +90,7 @@ export default async function MatchPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/matches" className="text-sm text-zinc-500 hover:text-foreground">
+        <Link href={backHref} className="text-sm text-zinc-500 hover:text-foreground">
           ← Matches
         </Link>
         <div className="mt-1 text-xs text-zinc-500">
