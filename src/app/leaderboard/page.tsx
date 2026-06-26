@@ -4,22 +4,45 @@ import type { Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
+const FORM_COLORS: Record<number, string> = {
+  0: "#9CA3AF", // gray
+  1: "#EF4444", // red
+  2: "#EAB308", // yellow
+  3: "#22C55E", // green
+  4: "#C0C0C0", // silver
+  5: "#FFD700", // gold
+};
+
+function formColor(pts: number): string {
+  return FORM_COLORS[pts] ?? "#FFD700";
+}
+
+const LEGEND = [
+  { label: "0 pts", color: "#9CA3AF" },
+  { label: "1 pt", color: "#EF4444" },
+  { label: "2 pts", color: "#EAB308" },
+  { label: "3 pts", color: "#22C55E" },
+  { label: "4 pts", color: "#C0C0C0" },
+  { label: "5 pts", color: "#FFD700" },
+];
+
 export default async function LeaderboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profiles }, { data: preds }, { data: specials }, { data: results }] =
+  const [{ data: profiles }, { data: preds }, { data: specials }, { data: results }, { data: matches }] =
     await Promise.all([
       supabase.from("profiles").select("id, display_name"),
-      supabase.from("predictions").select("user_id, points, match_id, ft_a, ft_b"),
+      supabase.from("predictions").select("user_id, points, match_id, ft_a, ft_b, scored"),
       supabase.from("special_predictions").select("user_id, points"),
       supabase.from("match_results").select("match_id, ft_a, ft_b"),
+      supabase.from("matches").select("id, kickoff_at"),
     ]);
 
-  // Look up actual full-time scores to count each player's exact-score hits.
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
+  const kickoffMap = new Map((matches ?? []).map((m) => [m.id, m.kickoff_at]));
 
   const stats = new Map<string, { match: number; special: number; exact: number }>();
   const bump = (uid: string, patch: Partial<{ match: number; special: number; exact: number }>) => {
@@ -30,14 +53,30 @@ export default async function LeaderboardPage() {
     stats.set(uid, s);
   };
 
+  const formPreds = new Map<string, { kickoff_at: string; points: number }[]>();
+
   (preds ?? []).forEach((p) => {
     bump(p.user_id, { match: p.points ?? 0 });
     const res = resultMap.get(p.match_id);
     if (res && isExactFullTime(p, res)) bump(p.user_id, { exact: 1 });
+    if (p.scored) {
+      const kickoff = kickoffMap.get(p.match_id);
+      if (kickoff) {
+        const arr = formPreds.get(p.user_id) ?? [];
+        arr.push({ kickoff_at: kickoff, points: p.points ?? 0 });
+        formPreds.set(p.user_id, arr);
+      }
+    }
   });
   (specials ?? []).forEach((s) => bump(s.user_id, { special: s.points ?? 0 }));
 
-  // Sort by total points; break ties by most exact scores (decision #3).
+  // Last 5 scored matches in chronological order (oldest → newest = left → right).
+  const formMap = new Map<string, number[]>();
+  for (const [uid, arr] of formPreds) {
+    const sorted = arr.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+    formMap.set(uid, sorted.slice(-5).map((x) => x.points));
+  }
+
   const rows = (profiles ?? [])
     .map((p: Pick<Profile, "id" | "display_name">) => {
       const s = stats.get(p.id) ?? { match: 0, special: 0, exact: 0 };
@@ -45,7 +84,6 @@ export default async function LeaderboardPage() {
     })
     .sort((a, b) => b.total - a.total || b.exact - a.exact);
 
-  // Competition ranking: equal totals share a rank ("ties stay tied").
   let rank = 0;
   let prevTotal: number | null = null;
   const ranked = rows.map((r, i) => {
@@ -72,32 +110,76 @@ export default async function LeaderboardPage() {
             <th className="text-right">Specials</th>
             <th className="text-right">Exact</th>
             <th className="text-right">Total</th>
+            <th className="py-2 text-right">Recent Form</th>
           </tr>
         </thead>
         <tbody>
-          {ranked.map((r) => (
-            <tr
-              key={r.id}
-              className={`border-b border-black/[.05] dark:border-white/[.08] ${
-                r.id === user?.id ? "bg-foreground/[.04] font-medium" : ""
-              }`}
-            >
-              <td className="py-2 text-zinc-400">{r.rank}</td>
-              <td className="font-medium">
-                {r.name}
-                {r.id === user?.id && <span className="ml-2 text-xs text-zinc-400">you</span>}
-              </td>
-              <td className="text-right font-mono">{r.match}</td>
-              <td className="text-right font-mono">{r.special}</td>
-              <td className="text-right font-mono text-zinc-500">{r.exact}</td>
-              <td className="text-right font-mono font-semibold">{r.total}</td>
-            </tr>
-          ))}
+          {ranked.map((r) => {
+            const form = formMap.get(r.id) ?? [];
+            // Left-pad with null so players with fewer than 5 games still fill 5 slots.
+            const padded: (number | null)[] = Array.from({ length: 5 }, (_, i) => {
+              const offset = i - (5 - form.length);
+              return offset >= 0 ? form[offset] : null;
+            });
+            return (
+              <tr
+                key={r.id}
+                className={`border-b border-black/[.05] dark:border-white/[.08] ${
+                  r.id === user?.id ? "bg-foreground/[.04] font-medium" : ""
+                }`}
+              >
+                <td className="py-2 text-zinc-400">{r.rank}</td>
+                <td className="font-medium">
+                  {r.name}
+                  {r.id === user?.id && <span className="ml-2 text-xs text-zinc-400">you</span>}
+                </td>
+                <td className="text-right font-mono">{r.match}</td>
+                <td className="text-right font-mono">{r.special}</td>
+                <td className="text-right font-mono text-zinc-500">{r.exact}</td>
+                <td className="text-right font-mono font-semibold">{r.total}</td>
+                <td className="py-2 text-right">
+                  <div className="flex justify-end gap-1">
+                    {padded.map((pts, i) =>
+                      pts == null ? (
+                        <span
+                          key={i}
+                          className="inline-block h-4 w-4 rounded-sm bg-zinc-200 dark:bg-zinc-700"
+                        />
+                      ) : (
+                        <span
+                          key={i}
+                          style={{ backgroundColor: formColor(pts) }}
+                          className="inline-block h-4 w-4 rounded-sm"
+                          title={`${pts} pts`}
+                        />
+                      )
+                    )}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+
       <p className="text-xs text-zinc-400">
         Ties share a rank and are ordered by most exact full-time scores.
       </p>
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+        <span className="font-medium">Recent Form:</span>
+        {LEGEND.map(({ label, color }) => (
+          <span key={label} className="flex items-center gap-1">
+            <span
+              className="inline-block h-3 w-3 rounded-sm"
+              style={{ backgroundColor: color }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
+
     </div>
   );
 }
