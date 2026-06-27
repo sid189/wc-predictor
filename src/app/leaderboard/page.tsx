@@ -56,11 +56,13 @@ export default async function LeaderboardPage({
       supabase.from("predictions").select("user_id, points, match_id, ft_a, ft_b, scored"),
       supabase.from("special_predictions").select("user_id, points"),
       supabase.from("match_results").select("match_id, ft_a, ft_b"),
-      supabase.from("matches").select("id, kickoff_at"),
+      supabase.from("matches").select("id, kickoff_at, match_order"),
     ]);
 
   const resultMap = new Map((results ?? []).map((r) => [r.match_id, r]));
-  const kickoffMap = new Map((matches ?? []).map((m) => [m.id, m.kickoff_at]));
+  const kickoffMap = new Map(
+    (matches ?? []).map((m) => [m.id, { kickoff_at: m.kickoff_at, match_order: m.match_order as number }]),
+  );
 
   // ── Leaderboard totals ────────────────────────────────────────────────────
 
@@ -73,7 +75,7 @@ export default async function LeaderboardPage({
     stats.set(uid, s);
   };
 
-  const formPreds = new Map<string, { kickoff_at: string; points: number }[]>();
+  const formPreds = new Map<string, { kickoff_at: string; match_order: number; points: number }[]>();
 
   // Index scored predictions per player + match for progression computation.
   const playerMatchPts = new Map<string, Map<string, number>>();
@@ -83,10 +85,10 @@ export default async function LeaderboardPage({
     const res = resultMap.get(p.match_id);
     if (res && isExactFullTime(p, res)) bump(p.user_id, { exact: 1 });
     if (p.scored) {
-      const kickoff = kickoffMap.get(p.match_id);
-      if (kickoff) {
+      const km = kickoffMap.get(p.match_id);
+      if (km) {
         const arr = formPreds.get(p.user_id) ?? [];
-        arr.push({ kickoff_at: kickoff, points: p.points ?? 0 });
+        arr.push({ kickoff_at: km.kickoff_at, match_order: km.match_order, points: p.points ?? 0 });
         formPreds.set(p.user_id, arr);
       }
       let m = playerMatchPts.get(p.user_id);
@@ -97,9 +99,14 @@ export default async function LeaderboardPage({
   (specials ?? []).forEach((s) => bump(s.user_id, { special: s.points ?? 0 }));
 
   // Last 5 scored matches per player, oldest → newest.
+  // Use match_order as a tiebreaker for simultaneous kickoffs (e.g. final
+  // group-stage matchday where two games kick off at the same time).
   const formMap = new Map<string, number[]>();
   for (const [uid, arr] of formPreds) {
-    const sorted = arr.sort((a, b) => a.kickoff_at.localeCompare(b.kickoff_at));
+    const sorted = arr.sort(
+      (a, b) =>
+        a.kickoff_at.localeCompare(b.kickoff_at) || a.match_order - b.match_order,
+    );
     formMap.set(uid, sorted.slice(-5).map((x) => x.points));
   }
 
@@ -128,7 +135,7 @@ export default async function LeaderboardPage({
   (preds ?? []).forEach((p) => { if (p.scored) scoredMatchSet.add(p.match_id); });
   const matchSlots = [...kickoffMap.entries()]
     .filter(([id]) => scoredMatchSet.has(id))
-    .sort(([, a], [, b]) => a.localeCompare(b))
+    .sort(([, a], [, b]) => a.kickoff_at.localeCompare(b.kickoff_at) || a.match_order - b.match_order)
     .map(([id]) => id);
 
   const N = matchSlots.length;
