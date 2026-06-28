@@ -7,9 +7,9 @@
 alter table public.tournament_config
   add column if not exists special_reopen_until timestamptz default null;
 
--- Set the first window: 28 hours from 2026-06-28 04:39 UTC (12:39 AM ET).
+-- Set the first window: closes 2026-06-28 19:00 UTC (3 PM ET).
 update public.tournament_config
-  set special_reopen_until = '2026-06-29 04:39:00+00'
+  set special_reopen_until = '2026-06-28 19:00:00+00'
   where id = 1;
 
 -- Update the trigger to honour the new column.
