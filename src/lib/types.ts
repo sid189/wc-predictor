@@ -93,6 +93,7 @@ export interface TournamentConfig {
   name: string;
   starts_at: string | null;
   group_stage_ends_at: string | null;
+  special_reopen_until: string | null;
   actual_winner_team_id: string | null;
   actual_golden_boot_player_id: string | null; // legacy, kept nullable
   actual_golden_boot_name: string | null;

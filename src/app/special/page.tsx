@@ -52,21 +52,33 @@ export default async function SpecialPage() {
   const groupEnd = cfg?.group_stage_ends_at
     ? new Date(cfg.group_stage_ends_at).getTime()
     : null;
+  const reopenUntil = cfg?.special_reopen_until
+    ? new Date(cfg.special_reopen_until).getTime()
+    : null;
 
   const preTournament = start == null || now <= start;
   const postGroup = start != null && now > start && groupEnd != null && now > groupEnd;
-  const inGroupStage = !preTournament && !postGroup;
+  const inReopenWindow = !preTournament && !postGroup && reopenUntil != null && now <= reopenUntil;
+  const inGroupStage = !preTournament && !postGroup && !inReopenWindow;
 
   let phaseNote = "Pick before the tournament starts — worth +5 if correct.";
-  if (inGroupStage) phaseNote = "Picks are locked during the group stage.";
-  else if (postGroup)
+  if (inGroupStage) {
+    phaseNote = "Picks are locked during the group stage.";
+  } else if (inReopenWindow) {
+    const deadline = new Date(reopenUntil!).toLocaleString("en-US", {
+      month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+      timeZone: "America/New_York", timeZoneName: "short",
+    });
+    phaseNote = `Change window open until ${deadline} — worth +2 if correct. You still keep one more change after the group stage ends.`;
+  } else if (postGroup) {
     phaseNote = "Group stage is over — you may change each pick once more (worth +2 if correct).";
+  }
 
   const winner = (picks ?? []).find((p: SpecialPrediction) => p.kind === "winner");
   const boot = (picks ?? []).find((p: SpecialPrediction) => p.kind === "golden_boot");
 
   const canEdit = (pick?: SpecialPrediction) =>
-    preTournament || (postGroup && !(pick?.post_group_change_used ?? false));
+    preTournament || inReopenWindow || (postGroup && !(pick?.post_group_change_used ?? false));
 
   // Build lookup maps for the reveal section.
   const teamMap = new Map(
