@@ -189,6 +189,7 @@ export default async function BracketPage({
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Bracket</h1>
       <BracketPicker
+        key={viewUserId ?? user.id}
         koMatches={koMatches}
         myPicks={displayPicks}
         locked={locked}
