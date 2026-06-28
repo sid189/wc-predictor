@@ -153,8 +153,10 @@ export default async function BracketPage({
     userScores.sort((a, b) => b.pts - a.pts || b.correct - a.correct);
 
     const profileMap = new Map(profiles.map((p) => [p.id, p.display_name]));
+    const submittedUserIds = new Set(picksByUser.keys());
+
     let rank = 1;
-    leaderboard = userScores.map((s, i) => {
+    const submittedRows: BracketLeaderboardRow[] = userScores.map((s, i) => {
       if (i > 0 && (s.pts !== userScores[i - 1].pts || s.correct !== userScores[i - 1].correct)) {
         rank = i + 1;
       }
@@ -167,6 +169,20 @@ export default async function BracketPage({
         hasSubmitted: true,
       };
     });
+
+    // Include invited players who didn't submit — shown below submitters.
+    const nonSubmittedRows: BracketLeaderboardRow[] = profiles
+      .filter((p) => !submittedUserIds.has(p.id))
+      .map((p) => ({
+        userId: p.id,
+        name: p.display_name,
+        rank: submittedRows.length + 1,
+        correct: 0,
+        pts: 0,
+        hasSubmitted: false,
+      }));
+
+    leaderboard = [...submittedRows, ...nonSubmittedRows];
   }
 
   return (

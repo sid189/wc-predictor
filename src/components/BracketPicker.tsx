@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
+import Link from "next/link";
 import { saveBracket } from "@/app/actions/bracket";
 import { BracketTree } from "@/components/BracketTree";
 
@@ -144,7 +145,10 @@ export function BracketPicker({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {viewingName ? (
           <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-            Viewing {viewingName}&apos;s bracket (read-only)
+            Viewing {viewingName}&apos;s bracket (read-only) ·{" "}
+            <Link href="/bracket" className="underline">
+              back to yours
+            </Link>
           </p>
         ) : locked ? (
           <p className="text-sm font-medium text-amber-600">
@@ -206,15 +210,33 @@ export function BracketPicker({
                       row.userId === currentUserId ? "bg-foreground/[.04] font-medium" : ""
                     }`}
                   >
-                    <td className="py-2 text-zinc-400">{row.rank}</td>
+                    <td className="py-2 text-zinc-400">
+                      {row.hasSubmitted ? row.rank : "–"}
+                    </td>
                     <td>
-                      {row.name}
+                      {row.hasSubmitted ? (
+                        <Link
+                          href={`/bracket?view=${row.userId}`}
+                          className="hover:underline"
+                        >
+                          {row.name}
+                        </Link>
+                      ) : (
+                        <span className="text-zinc-400">{row.name}</span>
+                      )}
                       {row.userId === currentUserId && (
                         <span className="ml-2 text-xs text-zinc-400">you</span>
                       )}
+                      {!row.hasSubmitted && (
+                        <span className="ml-2 text-xs text-zinc-400">no bracket</span>
+                      )}
                     </td>
-                    <td className="text-right font-mono">{row.correct}</td>
-                    <td className="text-right font-mono font-semibold">{row.pts}</td>
+                    <td className="text-right font-mono text-zinc-400">
+                      {row.hasSubmitted ? row.correct : "–"}
+                    </td>
+                    <td className="text-right font-mono font-semibold text-zinc-400">
+                      {row.hasSubmitted ? row.pts : "–"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
