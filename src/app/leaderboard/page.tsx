@@ -231,6 +231,7 @@ export default async function LeaderboardPage({
                 <th className="text-right">Exact</th>
                 <th className="text-right">Total</th>
                 <th className="py-2 text-right">Recent Form</th>
+                <th className="py-2 text-right">Bracket View</th>
               </tr>
             </thead>
             <tbody>
@@ -277,6 +278,14 @@ export default async function LeaderboardPage({
                           )
                         )}
                       </div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <Link
+                        href={`/bracket?view=${r.id}`}
+                        className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        View {r.name.split(" ")[0]}&apos;s bracket
+                      </Link>
                     </td>
                   </tr>
                 );

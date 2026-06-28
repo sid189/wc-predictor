@@ -24,7 +24,13 @@ const STAGE_POINTS: Record<string, number> = {
   final: 16,
 };
 
-export default async function BracketPage() {
+export default async function BracketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view: viewUserId } = await searchParams;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -109,6 +115,19 @@ export default async function BracketPage() {
       .map((r) => [r.match_id, r.winner_team_id!]),
   );
 
+  // Resolve which picks + name to display (own or another player's).
+  const isViewingOther = locked && viewUserId && viewUserId !== user.id;
+  const displayPicks: Record<string, string> = isViewingOther
+    ? Object.fromEntries(
+        allPicks
+          .filter((p) => p.user_id === viewUserId)
+          .map((p) => [p.match_id, p.predicted_winner_team_id]),
+      )
+    : myPicks;
+  const viewingName: string | undefined = isViewingOther
+    ? (profiles.find((p) => p.id === viewUserId)?.display_name ?? "Unknown")
+    : undefined;
+
   // Build leaderboard (only meaningful once locked).
   let leaderboard: BracketLeaderboardRow[] = [];
   if (locked) {
@@ -155,12 +174,13 @@ export default async function BracketPage() {
       <h1 className="text-xl font-semibold">Bracket</h1>
       <BracketPicker
         koMatches={koMatches}
-        myPicks={myPicks}
+        myPicks={displayPicks}
         locked={locked}
         teamNames={teamNames}
         actualWinners={actualWinners}
         leaderboard={leaderboard}
         currentUserId={user.id}
+        viewingName={viewingName}
       />
     </div>
   );

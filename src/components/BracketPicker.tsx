@@ -32,6 +32,7 @@ interface Props {
   actualWinners: Record<string, string>;
   leaderboard: BracketLeaderboardRow[];
   currentUserId: string;
+  viewingName?: string;
 }
 
 const STAGE_ORDER = [
@@ -40,7 +41,7 @@ const STAGE_ORDER = [
 ] as const;
 
 export function BracketPicker({
-  koMatches, myPicks, locked, teamNames, actualWinners, leaderboard, currentUserId,
+  koMatches, myPicks, locked, teamNames, actualWinners, leaderboard, currentUserId, viewingName,
 }: Props) {
   const [picks, setPicks] = useState<Record<string, string>>(myPicks);
   const [saving, startSave] = useTransition();
@@ -141,7 +142,11 @@ export function BracketPicker({
 
       {/* Status bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {locked ? (
+        {viewingName ? (
+          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+            Viewing {viewingName}&apos;s bracket (read-only)
+          </p>
+        ) : locked ? (
           <p className="text-sm font-medium text-amber-600">
             Bracket locked — R32 has kicked off.
           </p>
@@ -150,7 +155,7 @@ export function BracketPicker({
             {done}/{total} picks made{allPicked ? " · ready to submit!" : ""}
           </p>
         )}
-        {!locked && (
+        {!locked && !viewingName && (
           <button
             onClick={submit}
             disabled={!allPicked || saving}
