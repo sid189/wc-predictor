@@ -227,11 +227,9 @@ export default async function LeaderboardPage({
                 <th className="py-2">#</th>
                 <th>Player</th>
                 <th className="text-right">Matches</th>
-                <th className="text-right">Specials</th>
                 <th className="text-right">Exact</th>
                 <th className="text-right">Total</th>
-                <th className="py-2 text-right">Recent Form</th>
-                <th className="py-2 text-right">Bracket View</th>
+                <th className="py-2 pl-8 text-right">Recent Form</th>
               </tr>
             </thead>
             <tbody>
@@ -256,10 +254,9 @@ export default async function LeaderboardPage({
                       )}
                     </td>
                     <td className="text-right font-mono">{r.match}</td>
-                    <td className="text-right font-mono">{r.special}</td>
                     <td className="text-right font-mono text-zinc-500">{r.exact}</td>
                     <td className="text-right font-mono font-semibold">{r.total}</td>
-                    <td className="py-2 text-right">
+                    <td className="py-2 pl-8 text-right">
                       <div className="flex justify-end gap-1">
                         {padded.map((pts, i) =>
                           pts == null ? (
@@ -278,14 +275,6 @@ export default async function LeaderboardPage({
                           )
                         )}
                       </div>
-                    </td>
-                    <td className="py-2 text-right">
-                      <Link
-                        href={`/bracket?view=${r.id}`}
-                        className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        View {r.name.split(" ")[0]}&apos;s bracket
-                      </Link>
                     </td>
                   </tr>
                 );
