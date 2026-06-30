@@ -272,7 +272,11 @@ interface Props {
   rankLines: ProgLine[];
 }
 
+type View = "points" | "ranks";
+
 export function ProgressionCharts({ matchCount, maxPoints, numPlayers, pointLines, rankLines }: Props) {
+  const [view, setView] = useState<View>("points");
+
   if (matchCount === 0) {
     return (
       <p className="py-12 text-center text-sm text-zinc-500">
@@ -292,36 +296,50 @@ export function ProgressionCharts({ matchCount, maxPoints, numPlayers, pointLine
   );
 
   return (
-    <div className="space-y-10">
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-500">Cumulative Points</h2>
-        <LineChart
-          lines={pointLines}
-          n={matchCount}
-          yMin={0}
-          yMax={maxPoints || 1}
-          yTicks={ptTicks}
-          yLabel="Points"
-          tooltipSort="desc"
-        />
-        <Legend lines={pointLines} />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-500">
+          {view === "points" ? "Cumulative Points" : "Leaderboard Position"}
+        </h2>
+        <select
+          value={view}
+          onChange={(e) => setView(e.target.value as View)}
+          className="rounded-md border border-black/[.12] bg-transparent px-2 py-1 text-xs dark:border-white/[.18]"
+        >
+          <option value="points">Points progression</option>
+          <option value="ranks">Rank progression</option>
+        </select>
       </div>
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-500">Leaderboard Position</h2>
-        <LineChart
-          lines={rankLines}
-          n={matchCount}
-          yMin={1}
-          yMax={numPlayers}
-          yTicks={rankTicksFiltered}
-          yLabel="Position"
-          yFmt={(v) => `#${v}`}
-          yFlip
-          tooltipSort="asc"
-        />
-        <Legend lines={rankLines} />
-      </div>
+      {view === "points" ? (
+        <>
+          <LineChart
+            lines={pointLines}
+            n={matchCount}
+            yMin={0}
+            yMax={maxPoints || 1}
+            yTicks={ptTicks}
+            yLabel="Points"
+            tooltipSort="desc"
+          />
+          <Legend lines={pointLines} />
+        </>
+      ) : (
+        <>
+          <LineChart
+            lines={rankLines}
+            n={matchCount}
+            yMin={1}
+            yMax={numPlayers}
+            yTicks={rankTicksFiltered}
+            yLabel="Position"
+            yFmt={(v) => `#${v}`}
+            yFlip
+            tooltipSort="asc"
+          />
+          <Legend lines={rankLines} />
+        </>
+      )}
     </div>
   );
 }
