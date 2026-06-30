@@ -27,7 +27,6 @@ const LEGEND = [
 const COLUMNS = [
   { key: "mps",      label: "MPS" },
   { key: "specials", label: "Specials" },
-  { key: "played",   label: "Games Played" },
   { key: "exact",    label: "Exact" },
   { key: "total",    label: "Total" },
   { key: "form",     label: "Recent Form" },
@@ -45,7 +44,6 @@ export interface LeaderboardRow {
   special: number;
   exact: number;
   total: number;
-  played: number;
   form: number[];
 }
 
@@ -99,7 +97,6 @@ export function LeaderboardTable({
             <th>Player</th>
             {visible.has("mps") && <th className="text-right">MPS</th>}
             {visible.has("specials") && <th className="text-right">Specials</th>}
-            {visible.has("played") && <th className="text-right">Games Played</th>}
             {visible.has("exact") && <th className="text-right">Exact</th>}
             {visible.has("total") && <th className="text-right">Total</th>}
             {showForm && <th className="py-2 pl-8 text-right">Recent Form</th>}
@@ -127,7 +124,6 @@ export function LeaderboardTable({
                 </td>
                 {visible.has("mps") && <td className="text-right font-mono">{r.match}</td>}
                 {visible.has("specials") && <td className="text-right font-mono">{r.special}</td>}
-                {visible.has("played") && <td className="text-right font-mono">{r.played}</td>}
                 {visible.has("exact") && (
                   <td className="text-right font-mono text-zinc-500">{r.exact}</td>
                 )}

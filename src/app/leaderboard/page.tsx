@@ -45,16 +45,12 @@ export default async function LeaderboardPage({
 
   // ── Leaderboard totals ────────────────────────────────────────────────────
 
-  const stats = new Map<string, { match: number; special: number; exact: number; played: number }>();
-  const bump = (
-    uid: string,
-    patch: Partial<{ match: number; special: number; exact: number; played: number }>,
-  ) => {
-    const s = stats.get(uid) ?? { match: 0, special: 0, exact: 0, played: 0 };
+  const stats = new Map<string, { match: number; special: number; exact: number }>();
+  const bump = (uid: string, patch: Partial<{ match: number; special: number; exact: number }>) => {
+    const s = stats.get(uid) ?? { match: 0, special: 0, exact: 0 };
     if (patch.match)   s.match   += patch.match;
     if (patch.special) s.special += patch.special;
     if (patch.exact)   s.exact   += patch.exact;
-    if (patch.played)  s.played  += patch.played;
     stats.set(uid, s);
   };
 
@@ -68,7 +64,6 @@ export default async function LeaderboardPage({
     const res = resultMap.get(p.match_id);
     if (res && isExactFullTime(p, res)) bump(p.user_id, { exact: 1 });
     if (p.scored) {
-      bump(p.user_id, { played: 1 });
       const km = kickoffMap.get(p.match_id);
       if (km) {
         const arr = formPreds.get(p.user_id) ?? [];
@@ -96,7 +91,7 @@ export default async function LeaderboardPage({
 
   const rows = (profiles ?? [])
     .map((p: Pick<Profile, "id" | "display_name">) => {
-      const s = stats.get(p.id) ?? { match: 0, special: 0, exact: 0, played: 0 };
+      const s = stats.get(p.id) ?? { match: 0, special: 0, exact: 0 };
       return { id: p.id, name: p.display_name, ...s, total: s.match + s.special };
     })
     .sort((a, b) => b.total - a.total || b.exact - a.exact);
